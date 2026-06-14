@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 *.log
+.wrangler/
+.cf_tok
+.cf_zone
