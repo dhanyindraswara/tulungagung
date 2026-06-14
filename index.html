@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Jelajah Tulungagung — Petualangan Piksel</title>
+<style>
+  :root{
+    --ink:#2b2118; --paper:#f4e9d2; --paper2:#efe0c2; --gold:#caa24a; --gold2:#e7c66b;
+    --leaf:#3f7d4e; --sea:#2e7c8c; --brick:#9c5a3c; --rose:#c2532f; --shadow:rgba(40,28,16,.35);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#13202a;font-family:'Trebuchet MS','Segoe UI',sans-serif;color:var(--ink);}
+  #game{position:fixed;inset:0;overflow:hidden;touch-action:none;}
+  canvas#world{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;}
+
+  .panel{background:var(--paper);border:4px solid var(--ink);border-radius:14px;box-shadow:0 0 0 4px var(--gold) inset,8px 8px 0 var(--shadow);}
+  .btn{font-family:inherit;font-weight:bold;cursor:pointer;border:3px solid var(--ink);background:linear-gradient(var(--gold2),var(--gold));color:#3a2a12;border-radius:10px;padding:10px 18px;box-shadow:3px 3px 0 var(--shadow);transition:transform .08s,box-shadow .08s;font-size:15px;letter-spacing:.3px;}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow);}
+  .btn.alt{background:linear-gradient(#f0e2c2,#e3cf9f);}
+
+  #hud{position:absolute;inset:0;pointer-events:none;}
+  #hud>*{pointer-events:auto;}
+  .topbar{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between;}
+  .badgechip{display:flex;align-items:center;gap:8px;background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:5px 12px 5px 8px;box-shadow:3px 3px 0 var(--shadow);font-weight:bold;font-size:13px;}
+  .badgechip .ring{width:28px;height:28px;border-radius:50%;background:conic-gradient(var(--leaf) var(--p,0deg),#d8c39a 0);display:grid;place-items:center;}
+  .badgechip .ring i{width:19px;height:19px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-style:normal;font-size:11px;}
+  .iconbtns{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:60vw;}
+  .iconbtn{min-width:44px;height:44px;padding:0 8px;display:grid;place-items:center;font-size:19px;background:var(--paper);border:3px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--shadow);cursor:pointer;line-height:1;font-weight:bold;}
+  .iconbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow);}
+  .iconbtn.on{background:linear-gradient(var(--gold2),var(--gold));}
+  #btnLang{font-size:13px;letter-spacing:1px;}
+
+  #quest{position:absolute;left:10px;top:62px;max-width:min(64vw,360px);background:rgba(244,233,210,.95);border:3px solid var(--ink);border-left:10px solid var(--rose);border-radius:10px;padding:8px 12px;box-shadow:4px 4px 0 var(--shadow);font-size:13px;}
+  #quest b{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--rose);margin-bottom:1px;}
+  #quest span{font-weight:bold;line-height:1.25;display:block;}
+
+  /* minimap */
+  #minimap{position:absolute;right:10px;top:64px;background:rgba(244,233,210,.92);border:3px solid var(--ink);border-radius:10px;padding:5px;box-shadow:4px 4px 0 var(--shadow);}
+  #minimap canvas{display:block;border-radius:5px;image-rendering:pixelated;}
+  #minimap .mlbl{font-size:9px;font-weight:bold;text-align:center;letter-spacing:1px;text-transform:uppercase;opacity:.6;margin-top:2px;}
+
+  /* compass chip */
+  #compass{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);display:none;align-items:center;gap:10px;background:var(--ink);color:var(--paper);border:3px solid var(--gold);border-radius:999px;padding:7px 16px 7px 10px;box-shadow:0 6px 0 var(--shadow);font-weight:bold;font-size:13px;max-width:84vw;}
+  #compass .needle{width:30px;height:30px;border-radius:50%;background:var(--gold);color:var(--ink);display:grid;place-items:center;font-size:16px;flex:0 0 auto;}
+  #compass .needle b{display:block;transition:transform .15s;}
+  #compass .ctxt small{display:block;font-weight:normal;opacity:.8;font-size:11px;}
+
+  #prompt{position:absolute;left:50%;bottom:26%;transform:translateX(-50%);background:var(--ink);color:var(--paper);border:3px solid var(--gold);border-radius:999px;padding:8px 18px;font-weight:bold;font-size:14px;display:none;align-items:center;gap:8px;box-shadow:0 6px 0 var(--shadow);animation:bob 1s ease-in-out infinite;}
+  @keyframes bob{50%{transform:translateX(-50%) translateY(-5px);}}
+  #prompt .key{background:var(--gold);color:var(--ink);border-radius:6px;padding:1px 8px;font-size:13px;}
+
+  #toast{position:absolute;left:50%;top:13%;transform:translateX(-50%) translateY(-30px);opacity:0;background:var(--ink);color:#fff;border:3px solid var(--gold);border-radius:12px;padding:12px 20px;font-weight:bold;box-shadow:6px 6px 0 var(--shadow);transition:.4s;max-width:80vw;text-align:center;font-size:15px;z-index:25;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast small{display:block;font-weight:normal;opacity:.85;font-size:12px;margin-top:3px;}
+
+  #touch{position:absolute;inset:0;pointer-events:none;display:none;}
+  #joy{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:140px;height:140px;border-radius:50%;background:rgba(244,233,210,.28);border:3px solid rgba(43,33,24,.55);pointer-events:auto;touch-action:none;}
+  #joy .nub{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--gold2),var(--gold));border:3px solid var(--ink);box-shadow:0 4px 0 var(--shadow);}
+  #actBtn{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(40px,env(safe-area-inset-bottom));width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f3b15a,var(--rose));border:4px solid var(--ink);color:#fff;font-weight:bold;font-size:15px;pointer-events:auto;box-shadow:0 6px 0 var(--shadow);display:grid;place-items:center;text-align:center;line-height:1.05;touch-action:none;}
+  #actBtn:active{transform:translateY(3px);box-shadow:0 3px 0 var(--shadow);}
+
+  .scrim{position:absolute;inset:0;background:rgba(19,32,42,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:20;backdrop-filter:blur(2px);}
+  .scrim.show{display:flex;}
+
+  #start .panel{max-width:580px;width:100%;padding:0;overflow:hidden;text-align:center;max-height:94vh;display:flex;flex-direction:column;}
+  #start .hero{padding:24px 24px 16px;background:radial-gradient(120% 90% at 50% -20%,#ffe7a8 0%,transparent 60%),linear-gradient(#1d3a44,#16606b);color:#fff;position:relative;flex:0 0 auto;}
+  #start h1{margin:.1em 0 .05em;font-size:clamp(28px,7vw,46px);letter-spacing:1px;text-shadow:0 3px 0 #0a2b32,3px 3px 0 #0a2b32;line-height:1;}
+  #start .tag{font-size:13px;opacity:.95;letter-spacing:3px;text-transform:uppercase;}
+  #start .langrow{display:flex;gap:6px;justify-content:center;margin-top:12px;}
+  #start .langrow button{font-family:inherit;font-weight:bold;font-size:12px;letter-spacing:.5px;border:2px solid #fff;background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:5px 14px;cursor:pointer;}
+  #start .langrow button.on{background:#fff;color:#16606b;}
+  #start .body{padding:18px 22px 22px;overflow:auto;}
+  #start p.lead{margin:.2em 0 1em;font-size:15px;line-height:1.5;}
+  .howto{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px;font-size:12.5px;text-align:left;}
+  .howto div{background:var(--paper2);border:2px solid var(--ink);border-radius:8px;padding:7px 10px;}
+  .howto b{color:var(--brick);}
+  #start .start-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .credit{margin-top:14px;font-size:11px;opacity:.7;line-height:1.5;}
+
+  #popup .panel{max-width:580px;width:100%;padding:0;overflow:hidden;max-height:94vh;display:flex;flex-direction:column;}
+  .pp-top{position:relative;height:188px;overflow:hidden;border-bottom:4px solid var(--ink);flex:0 0 auto;}
+  .pp-top canvas{width:100%;height:100%;display:block;image-rendering:auto;}
+  .pp-kind{position:absolute;top:12px;left:12px;background:var(--ink);color:#fff;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:999px;border:2px solid var(--gold);}
+  .pp-stamp{position:absolute;top:10px;right:10px;width:72px;height:72px;border-radius:50%;border:3px dashed #fff;color:#fff;display:none;place-items:center;text-align:center;font-size:10px;font-weight:bold;transform:rotate(-12deg);background:rgba(63,125,78,.55);line-height:1.15;}
+  .pp-stamp.on{display:grid;}
+  .pp-body{padding:16px 20px 18px;overflow:auto;}
+  .pp-body h2{margin:0 0 3px;font-size:23px;line-height:1.05;}
+  .pp-loc{font-size:12.5px;color:var(--brick);font-weight:bold;margin-bottom:10px;}
+  .pp-loc::before{content:'📍 ';}
+  .pp-meta{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;align-items:center;}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:bold;border:2px solid var(--ink);border-radius:999px;padding:5px 11px;background:var(--paper2);text-decoration:none;color:var(--ink);}
+  .chip.star{background:#fff4d6;}
+  .chip.price{background:#e7f0d6;}
+  .chip.link{background:linear-gradient(var(--gold2),var(--gold));}
+  .chip.link:active{transform:translateY(1px);}
+  .pp-desc{font-size:14px;line-height:1.55;margin:0 0 12px;}
+  .pp-facts{list-style:none;padding:0;margin:0 0 12px;display:flex;flex-direction:column;gap:6px;}
+  .pp-facts li{background:var(--paper2);border-left:5px solid var(--gold);border-radius:6px;padding:7px 11px;font-size:13px;line-height:1.4;}
+  .pp-note{font-size:11px;opacity:.62;margin:0 0 10px;}
+  .pp-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border-top:2px dashed #c8b283;padding-top:12px;}
+  .pp-src{font-size:12px;}.pp-src a{color:var(--brick);}
+  .closeX{position:absolute;top:-14px;right:-14px;width:40px;height:40px;border-radius:50%;background:var(--rose);color:#fff;border:3px solid var(--ink);font-size:20px;font-weight:bold;cursor:pointer;box-shadow:3px 3px 0 var(--shadow);z-index:5;}
+
+  #book .panel{max-width:780px;width:100%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;}
+  .bk-head{background:linear-gradient(#1d3a44,#16606b);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .bk-head h2{margin:0;font-size:21px;}
+  .bk-tabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap;}
+  .bk-tab{font-size:12.5px;font-weight:bold;border:2px solid var(--ink);background:var(--paper2);border-radius:999px 999px 0 0;padding:6px 13px;cursor:pointer;border-bottom:none;}
+  .bk-tab.on{background:var(--gold);}
+  .bk-grid{padding:12px 16px 18px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .bk-card{background:var(--paper2);border:3px solid var(--ink);border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:3px 3px 0 var(--shadow);transition:transform .08s;}
+  .bk-card:active{transform:translate(2px,2px);}
+  .bk-card .thumb{height:78px;position:relative;}
+  .bk-card .thumb canvas{width:100%;height:100%;display:block;}
+  .bk-card.locked{filter:grayscale(1) brightness(.82);opacity:.85;}
+  .bk-card .lk{position:absolute;inset:0;display:grid;place-items:center;font-size:24px;background:rgba(20,20,20,.25);}
+  .bk-card .nm{padding:7px 9px;font-size:12.5px;font-weight:bold;line-height:1.2;}
+  .bk-card .nm small{display:block;font-weight:normal;opacity:.7;font-size:10.5px;margin-top:2px;}
+
+  #dialog{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);width:min(620px,92vw);z-index:18;display:none;}
+  #dialog .panel{padding:14px 18px;display:flex;gap:14px;align-items:flex-start;}
+  #dialog .face{width:54px;height:54px;border-radius:10px;border:3px solid var(--ink);flex:0 0 auto;image-rendering:pixelated;}
+  #dialog .who{font-size:12px;font-weight:bold;color:var(--brick);letter-spacing:1px;text-transform:uppercase;}
+  #dialog .line{font-size:15px;line-height:1.5;margin-top:2px;}
+  #dialog .more{font-size:11px;opacity:.6;text-align:right;margin-top:6px;}
+
+  /* photo viewer */
+  .pp-top img.pp-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;cursor:zoom-in;background:#1d3a44;z-index:1;}
+  .pp-top img.pp-photo.on{display:block;}
+  .pp-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:48px;display:none;place-items:center;background:rgba(20,20,20,.45);color:#fff;font-size:26px;cursor:pointer;border:none;z-index:3;border-radius:8px;}
+  .pp-nav.prev{left:8px;}.pp-nav.next{right:8px;}
+  .pp-top.multi .pp-nav{display:grid;}
+  .pp-count{position:absolute;top:10px;right:50%;transform:translateX(50%);background:rgba(20,20,20,.6);color:#fff;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:999px;z-index:3;display:none;}
+  .pp-count.on{display:block;}
+  .pp-cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(10,10,10,.8));color:#fff;font-size:10.5px;padding:20px 12px 7px;z-index:2;display:none;line-height:1.35;}
+  .pp-cap.on{display:block;}.pp-cap a{color:#ffe7a8;}
+  .pp-spin{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(20,40,50,.4);z-index:4;color:#fff;font-size:12px;font-weight:bold;gap:8px;}
+  .pp-spin.on{display:flex;}
+  .pp-spin .sp{width:30px;height:30px;border:4px solid rgba(255,255,255,.3);border-top-color:#ffe7a8;border-radius:50%;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  /* travel chips */
+  .pp-travel{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px;}
+  .tchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:#fff;border:1.5px solid #e0d2ad;border-radius:10px;padding:5px 10px;}
+  .tchip b{color:var(--brick);}
+  .tchip small{opacity:.75;}
+  .goodrow{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px;}
+  .gtag{font-size:11px;font-weight:bold;background:#d7e8c4;color:#3a5a28;border-radius:999px;padding:3px 9px;}
+  .chip.wish{cursor:pointer;background:#fff4d6;}
+  .chip.wish.on{background:linear-gradient(var(--gold2),var(--gold));}
+  /* lightbox */
+  #lightbox .lb-wrap{position:relative;max-width:96vw;max-height:90vh;display:flex;align-items:center;justify-content:center;}
+  #lightbox img{max-width:96vw;max-height:82vh;border-radius:8px;border:3px solid #000;box-shadow:0 10px 40px rgba(0,0,0,.6);}
+  #lightbox .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:66px;display:grid;place-items:center;background:rgba(255,255,255,.16);color:#fff;font-size:34px;cursor:pointer;border-radius:10px;border:none;}
+  #lightbox .lb-nav.prev{left:-6px;}#lightbox .lb-nav.next{right:-6px;}
+  #lightbox .lb-cap{position:absolute;left:0;right:0;bottom:-4px;transform:translateY(100%);color:#eee;font-size:12px;padding:8px 4px;text-align:center;line-height:1.4;}
+  #lightbox .lb-cap a{color:#ffe7a8;}
+  @media(max-width:560px){#lightbox .lb-cap{position:static;transform:none;margin-top:8px;}#lightbox .lb-nav{width:40px;font-size:28px;}}
+  /* about */
+  #about .panel{max-width:600px;width:100%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;}
+  #about .ab-body{padding:16px 22px 22px;overflow:auto;}
+  #about .ab-body h3{margin:14px 0 4px;font-size:15px;color:var(--brick);}
+  #about .ab-body h3:first-child{margin-top:0;}
+  #about .ab-body p{margin:0;font-size:13.5px;line-height:1.55;}
+  .bk-card .cardwish{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.88);border:2px solid var(--ink);display:grid;place-items:center;font-size:13px;cursor:pointer;z-index:3;}
+  .bk-card .cardwish.on{background:var(--gold);}
+  .hint{font-size:11px;opacity:.7;}
+  @media (max-width:560px){.howto{grid-template-columns:1fr;}#quest{font-size:12px;max-width:54vw;}.pp-top{height:150px;}.iconbtns{max-width:52vw;}}
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="world"></canvas>
+
+  <div id="hud">
+    <div class="topbar">
+      <div class="badgechip"><span class="ring" id="progRing"><i id="progNum">0</i></span><span id="progTxt">0/23</span></div>
+      <div class="iconbtns">
+        <div class="iconbtn" id="btnLang">ID</div>
+        <div class="iconbtn" id="btnAbout" title="Info">ℹ️</div>
+        <div class="iconbtn on" id="btnMap" title="Peta">🗺️</div>
+        <div class="iconbtn" id="btnBook" title="Buku">📖</div>
+        <div class="iconbtn on" id="btnMusic" title="Musik">🎵</div>
+        <div class="iconbtn" id="btnHelp" title="Bantuan">❔</div>
+      </div>
+    </div>
+    <div id="quest"><b id="questLabel">Misi</b><span id="questTxt"></span></div>
+    <div id="minimap"><canvas id="mmCv" width="132" height="88"></canvas><div class="mlbl" id="mmLbl">Peta</div></div>
+    <div id="compass"><span class="needle"><b>➤</b></span><span class="ctxt" id="compassTxt"></span></div>
+    <div id="prompt"><span class="key" id="promptKey">E</span><span id="promptTxt"></span></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="touch">
+    <div id="joy"><div class="nub"></div></div>
+    <div id="actBtn">PERIKSA</div>
+  </div>
+
+  <div id="dialog"><div class="panel"><canvas class="face" width="16" height="16"></canvas>
+    <div style="flex:1"><div class="who"></div><div class="line"></div><div class="more"></div></div></div></div>
+
+  <!-- start -->
+  <div class="scrim show" id="start">
+    <div class="panel"><div class="hero">
+      <div class="tag" id="sTag">Petualangan Piksel</div>
+      <h1>Jelajah Tulungagung</h1>
+      <div style="font-size:13px;opacity:.9" id="sRegion">Jawa Timur • Kota Marmer</div>
+      <div class="langrow"><button data-lang="id" class="on">Indonesia</button><button data-lang="en">English</button><button data-lang="jv">Basa Jawa</button></div>
+    </div><div class="body">
+      <p class="lead" id="sLead"></p>
+      <div class="howto">
+        <div id="sH1"></div><div id="sH2"></div><div id="sH3"></div><div id="sH4"></div>
+      </div>
+      <div class="start-actions">
+        <button class="btn" id="playBtn"></button>
+        <button class="btn alt" id="playMute"></button>
+      </div>
+      <div class="credit" id="sCredit"></div>
+    </div></div>
+  </div>
+
+  <!-- spot popup -->
+  <div class="scrim" id="popup"><div class="panel" style="position:relative">
+    <button class="closeX" data-close>×</button>
+    <div class="pp-top" id="ppTop"><canvas id="ppArt" width="580" height="188"></canvas>
+      <img class="pp-photo" id="ppPhoto" alt="">
+      <button class="pp-nav prev" id="ppPrev">‹</button>
+      <button class="pp-nav next" id="ppNext">›</button>
+      <div class="pp-count" id="ppCount"></div>
+      <div class="pp-cap" id="ppCap"></div>
+      <div class="pp-spin" id="ppSpin"><div class="sp"></div><span id="ppSpinTxt"></span></div>
+      <div class="pp-kind" id="ppKind"></div>
+      <div class="pp-stamp" id="ppStamp"></div>
+    </div>
+    <div class="pp-body">
+      <h2 id="ppName"></h2>
+      <div class="pp-loc" id="ppLoc"></div>
+      <div class="pp-meta" id="ppMeta"></div>
+      <div class="pp-travel" id="ppTravel"></div>
+      <div class="goodrow" id="ppGood"></div>
+      <p class="pp-desc" id="ppDesc"></p>
+      <ul class="pp-facts" id="ppFacts"></ul>
+      <p class="pp-note" id="ppNote"></p>
+      <div class="pp-foot">
+        <div class="pp-src" id="ppSrc"></div>
+        <button class="btn" data-close id="ppClose"></button>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- guidebook -->
+  <div class="scrim" id="book"><div class="panel">
+    <div class="bk-head"><h2 id="bkTitle">📖 Buku Petualang</h2><button class="btn alt" data-close id="bkClose"></button></div>
+    <div class="bk-tabs" id="bkTabs"></div>
+    <div class="bk-grid" id="bkGrid"></div>
+  </div></div>
+
+  <!-- help -->
+  <div class="scrim" id="help"><div class="panel" style="max-width:480px;padding:20px 22px;position:relative;max-height:90vh;overflow:auto">
+    <button class="closeX" data-close>×</button>
+    <h2 style="margin:.1em 0 .4em" id="hpTitle"></h2>
+    <div class="howto" style="grid-template-columns:1fr" id="hpList"></div>
+    <p class="hint" id="hpSave"></p>
+  </div></div>
+
+  <!-- lightbox (fullscreen real photo) -->
+  <div class="scrim" id="lightbox" style="z-index:30;background:rgba(0,0,0,.92)">
+    <button class="closeX" data-close style="top:14px;right:14px;position:absolute">×</button>
+    <div class="lb-wrap">
+      <img id="lbImg" alt="">
+      <button class="lb-nav prev" id="lbPrev">‹</button>
+      <button class="lb-nav next" id="lbNext">›</button>
+      <div class="lb-cap" id="lbCap"></div>
+    </div>
+  </div>
+
+  <!-- about Tulungagung -->
+  <div class="scrim" id="about"><div class="panel">
+    <div class="bk-head"><h2 id="abTitle"></h2><button class="btn alt" data-close id="abClose"></button></div>
+    <div class="ab-body" id="abBody"></div>
+  </div></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   JELAJAH TULUNGAGUNG — cozy top-down pixel adventure (trilingual + guided)
+   ========================================================================== */
+
+/* ---------------- i18n: UI strings ---------------- */
+let lang = localStorage.getItem('jt_lang') || 'id';
+const UI = {
+  appsub:{id:'Petualangan Piksel',en:'Pixel Adventure',jv:'Dolanan Piksel'},
+  region:{id:'Jawa Timur • Kota Marmer',en:'East Java • The Marble City',jv:'Jawa Timur • Kutha Marmer'},
+  lead:{
+    id:'Main jadi <b>Arka</b>, penjelajah muda yang keliling Tulungagung mengumpulkan stempel di Buku Petualang — dari pantai pesisir selatan, air terjun tersembunyi, sampai jajanan legendaris. Ikuti jalan setapak & kompas, gampang kok!',
+    en:'Play as <b>Arka</b>, a young explorer roaming Tulungagung to collect stamps in the Adventure Book — from south-coast beaches and hidden waterfalls to legendary street foods. Just follow the trail & compass — easy!',
+    jv:'Dadi <b>Arka</b>, penjelajah enom sing mubeng Tulungagung ngumpulake stempel ing Buku Petualang — saka pantai pesisir kidul, grojogan ndhelik, nganti jajanan legendaris. Tinggal ngetutke dalan setapak & kompas, gampang!'},
+  h1:{id:'<b>Gerak</b> — WASD / panah, atau joystick di layar',en:'<b>Move</b> — WASD / arrows, or the on-screen joystick',jv:'<b>Mlaku</b> — WASD / panah, utawa joystick ing layar'},
+  h2:{id:'<b>Periksa</b> — tombol E / Spasi, atau tombol PERIKSA',en:'<b>Check</b> — E / Space key, or the CHECK button',jv:'<b>Mriksa</b> — tombol E / Spasi, utawa tombol PERIKSA'},
+  h3:{id:'<b>Kompas 🧭</b> menunjuk tujuan berikutnya — ikuti saja',en:'<b>Compass 🧭</b> points to the next stop — just follow it',jv:'<b>Kompas 🧭</b> nuduhake tujuan sabanjure — tinggal melu'},
+  h4:{id:'<b>Buku 📖</b> & <b>Peta 🗺️</b> untuk lihat koleksi & lokasi',en:'<b>Book 📖</b> & <b>Map 🗺️</b> to see your collection & location',jv:'<b>Buku 📖</b> & <b>Peta 🗺️</b> kanggo ndeleng koleksi & lokasi'},
+  play:{id:'▶ Mulai Bermain',en:'▶ Start Playing',jv:'▶ Wiwiti Dolanan'},
+  playmute:{id:'Main tanpa musik',en:'Play without music',jv:'Dolanan tanpa musik'},
+  credit:{id:'Musik gamelan disintesis orisinal & bebas royalti. Ilustrasi piksel dibuat khusus. Tiap lokasi punya tautan <b>Google Maps</b>, <b>foto asli</b>, dan <b>Sumber</b> rujukan.',
+    en:'The gamelan music is originally synthesized & royalty-free. Pixel art is custom-made. Each place has <b>Google Maps</b>, <b>real photos</b>, and a <b>Source</b> link.',
+    jv:'Musik gamelan disintesis orisinal & bébas royalti. Gambar piksel digawe khusus. Saben papan ana tautan <b>Google Maps</b>, <b>foto asli</b>, lan <b>Sumber</b>.'},
+  questLabel:{id:'Misi',en:'Quest',jv:'Pakaryan'},
+  prog:{id:'tempat',en:'places',jv:'papan'},
+  view:{id:'Lihat',en:'View',jv:'Deleng'},
+  talk:{id:'Ngobrol',en:'Talk',jv:'Omong'},
+  map:{id:'Peta',en:'Map',jv:'Peta'},
+  book:{id:'📖 Buku Petualang',en:'📖 Adventure Book',jv:'📖 Buku Petualang'},
+  close:{id:'Tutup',en:'Close',jv:'Tutup'},
+  source:{id:'Sumber',en:'Source',jv:'Sumber'},
+  stamp:{id:'SUDAH<br>DIKUNJUNGI',en:'VISITED',jv:'WIS<br>DITEKANI'},
+  openmaps:{id:'Buka Maps',en:'Open Maps',jv:'Bukak Maps'},
+  photos:{id:'Foto asli',en:'Real photos',jv:'Foto asli'},
+  reviews:{id:'Ulasan',en:'Reviews',jv:'Ulasan'},
+  ratingnote:{id:'★ rating perkiraan dari Google Maps — ketuk “Buka Maps” untuk foto & ulasan asli terbaru.',en:'★ approximate Google Maps rating — tap “Open Maps” for the latest real photos & reviews.',jv:'★ rating perkiraan saka Google Maps — pencet “Bukak Maps” kanggo foto & ulasan asli paling anyar.'},
+  foodnote:{id:'Harga perkiraan. Ketuk “Buka Maps” untuk warung terdekat, foto & ulasan asli.',en:'Approximate price. Tap “Open Maps” for nearby stalls, real photos & reviews.',jv:'Rega perkiraan. Pencet “Bukak Maps” kanggo warung cedhak, foto & ulasan asli.'},
+  all:{id:'Semua',en:'All',jv:'Kabeh'},
+  locked:{id:'belum dikunjungi',en:'not visited yet',jv:'durung ditekani'},
+  newstamp:{id:'🎉 Stempel baru!',en:'🎉 New stamp!',jv:'🎉 Stempel anyar!'},
+  added:{id:'ditambahkan ke Buku Petualang',en:'added to your Adventure Book',jv:'ditambahake ing Buku Petualang'},
+  help:{id:'Cara Bermain',en:'How to Play',jv:'Carane Dolanan'},
+  hpSave:{id:'Progres tersimpan otomatis di perangkatmu.',en:'Your progress saves automatically on this device.',jv:'Kemajuan kasimpen otomatis ing pirantimu.'},
+  toNext:{id:'Tujuan berikutnya',en:'Next stop',jv:'Tujuan sabanjure'},
+  arrived:{id:'Kamu sampai! Tekan PERIKSA',en:'You arrived! Press CHECK',jv:'Wis tekan! Pencet PERIKSA'},
+  step:{id:'Langkah',en:'Step',jv:'Tahap'},
+  done:{id:'🏆 Semua tempat selesai! Matur nuwun!',en:'🏆 All places done! Thank you!',jv:'🏆 Kabeh papan rampung! Matur nuwun!'},
+  complete:{id:'🏆 PETUALANGAN TUNTAS!',en:'🏆 ADVENTURE COMPLETE!',jv:'🏆 PETUALANGAN RAMPUNG!'},
+  completeSub:{id:'Kamu menjelajahi seluruh Tulungagung.',en:'You explored all of Tulungagung.',jv:'Kowe wis njelajah kabeh Tulungagung.'},
+  fee:{id:'Tiket masuk',en:'Entry fee',jv:'Tiket mlebu'},
+  free:{id:'Gratis',en:'Free',jv:'Gratis'},
+  besttime:{id:'Waktu terbaik',en:'Best time',jv:'Wektu apik'},
+  distance:{id:'Jarak',en:'Distance',jv:'Adoh'},
+  fromcity:{id:'dari pusat kota',en:'from city center',jv:'saka tengah kutha'},
+  loadingPhoto:{id:'Memuat foto asli…',en:'Loading real photos…',jv:'Ngemot foto asli…'},
+  nophoto:{id:'Foto asli bebas-lisensi belum tersedia — menampilkan ilustrasi. Ketuk “Buka Maps” untuk foto Google.',en:'No free real photo on Wikimedia yet — showing illustration. Tap “Open Maps” for Google photos.',jv:'Foto asli bébas-lisensi durung ana — nampilake ilustrasi. Pencet “Bukak Maps” kanggo foto Google.'},
+  savewish:{id:'Simpan',en:'Save',jv:'Simpen'},
+  saved:{id:'Tersimpan',en:'Saved',jv:'Kasimpen'},
+  wishtab:{id:'Disimpan ★',en:'Saved ★',jv:'Disimpen ★'},
+  wishadded:{id:'★ Disimpan untuk dikunjungi',en:'★ Saved to visit later',jv:'★ Disimpen kanggo diparani'},
+  wishempty:{id:'Belum ada yang disimpan. Buka tempat lalu ketuk ☆ Simpan.',en:'Nothing saved yet. Open a place and tap ☆ Save.',jv:'Durung ana sing disimpen. Bukak papan banjur pencet ☆ Simpen.'},
+  about:{id:'Tentang Tulungagung',en:'About Tulungagung',jv:'Bab Tulungagung'},
+  welcome:{id:'SELAMAT DATANG DI',en:'WELCOME TO',jv:'SUGENG RAWUH ING'},
+};
+function t(k){return (UI[k] && UI[k][lang]) || (UI[k] && UI[k].id) || k;}
+
+const KIND_LABEL = {
+  beach:{id:'Pantai',en:'Beach',jv:'Pesisir'},
+  water:{id:'Air Terjun',en:'Waterfall',jv:'Grojogan'},
+  nature:{id:'Alam',en:'Nature',jv:'Alam'},
+  culture:{id:'Budaya',en:'Culture',jv:'Budaya'},
+  food:{id:'Kuliner',en:'Cuisine',jv:'Pangan'},
+};
+const KL=(k)=>KIND_LABEL[k][lang];
+const DIRS={
+  id:['Timur','Timur Laut','Utara','Barat Laut','Barat','Barat Daya','Selatan','Tenggara'],
+  en:['East','Northeast','North','Northwest','West','Southwest','South','Southeast'],
+  jv:['Wétan','Lor-Wétan','Lor','Lor-Kulon','Kulon','Kidul-Kulon','Kidul','Kidul-Wétan'],
+};
+function dirWord(dx,dy){let a=Math.atan2(-dy,dx);let i=Math.round(a/(Math.PI/4));i=((i%8)+8)%8;return DIRS[lang][i];}
+
+const PALETTES = {
+  beach:{sky:'#bfe6f2',a:'#f0d89a',b:'#2f93a8',c:'#1d6f86'},
+  water:{sky:'#cfeede',a:'#4aa06a',b:'#3a7d8c',c:'#bfe3ef'},
+  nature:{sky:'#d7ecc6',a:'#3f7d4e',b:'#2c5c3b',c:'#86b86a'},
+  culture:{sky:'#efe2c4',a:'#c9c4bd',b:'#8a8580',c:'#e8e3dc'},
+  food:{sky:'#f6e2c0',a:'#c2532f',b:'#e08a3c',c:'#7a3a1f'},
+};
+
+/* ---------------- SPOT DATA (trilingual) ---------------- */
+function L(s){return s.t[lang]||s.t.id;}
+const SPOTS = [
+ {id:'lodho',kind:'food',x:46,y:18,price:'Rp 15–35rb',q:'Ayam Lodho Tulungagung',loc:'Warung sego lodho • kota',src:{label:'liputan6.com',url:'https://www.liputan6.com/regional'},
+  t:{id:{desc:'Raja kuliner Tulungagung: ayam kampung dibakar lalu dimasak dalam santan kental berbumbu rempah hingga gurih-pedas meresap.',f:['Bumbu kaya: serai, salam, lengkuas, jahe, kunyit, ketumbar.','Disajikan dengan nasi gurih, telur, tahu/tempe, dan sambal.','Dulu hidangan istimewa untuk hajatan & hari besar.']},
+     en:{desc:"Tulungagung's signature dish: free-range chicken grilled, then simmered in thick spiced coconut milk until savory and spicy.",f:['Rich spices: lemongrass, bay leaf, galangal, ginger, turmeric.','Served with savory rice, egg, tofu/tempeh, and chili.','Once a special dish for celebrations.']},
+     jv:{desc:'Rajane kuliner Tulungagung: pitik kampung dibakar banjur dimasak santen kentel bumbu rempah nganti gurih-pedhes njero.',f:['Bumbune sugih: sereh, salam, laos, jahe, kunir, ketumbar.','Disuguhake karo sega gurih, endhog, tahu/tempe, lan sambel.','Biyen panganan istimewa kanggo hajatan.']}}},
+ {id:'kopiijo',kind:'food',x:50,y:13,price:'Rp 5–12rb',q:'Kopi Ijo Tulungagung',loc:'Warung kopi khas • kota',src:{label:'pinhome.id',url:'https://www.pinhome.id/blog/makanan-khas-tulungagung/'},
+  t:{id:{desc:'Minuman ikonik Tulungagung: kopi robusta disangrai bersama campuran tertentu hingga ampasnya berwarna kehijauan.',f:['Warna hijau khas muncul dari proses sangrai uniknya.','Wajib dicoba sambil menikmati jajanan jadul kota.']},
+     en:{desc:'An iconic local drink: robusta coffee roasted with a special blend until the grounds turn greenish.',f:['The signature green comes from a unique roast.','A must-try alongside the old-school snacks.']},
+     jv:{desc:'Ombèn ikonik Tulungagung: kopi robusta disangrai karo campuran tartamtu nganti ampase werna ijo.',f:['Werna ijo khase metu saka proses sangrai unik.','Kudu dicoba karo nyruput jajan jadul.']}}},
+ {id:'gethuk',kind:'food',x:53,y:16,price:'Rp 5–15rb',q:'Gethuk Pisang Tulungagung',loc:'Oleh-oleh khas kota',src:{label:'traveloka.com',url:'https://www.traveloka.com/id-id/explore/culinary'},
+  t:{id:{desc:'Ikon oleh-oleh Tulungagung: gethuk dari pisang kepok/ambon yang manis sedikit asam, dibungkus daun pisang mirip lontong kecil.',f:['Warnanya kemerahan alami dari pisang matang.','Dijuluki si pisang dua rasa: manis berpadu asam segar.']},
+     en:{desc:'An iconic souvenir: gethuk made from kepok/ambon banana, sweet with a touch of tang, wrapped in banana leaf like a small lontong.',f:['Naturally reddish from ripe bananas.',"Nicknamed the 'two-taste banana': sweet meets fresh sour."]},
+     jv:{desc:'Ikon oleh-oleh Tulungagung: gethuk saka gedhang kepok/ambon sing manis rada kecut, dibungkus godhong gedhang kaya lontong cilik.',f:['Wernane abang alami saka gedhang mateng.','Dijuluki gedhang rong rasa: manis campur kecut seger.']}}},
+ {id:'sredek',kind:'food',x:59,y:16,price:'Rp 3–8rb',q:'Sredek Tulungagung',loc:'Warung sego pecel',src:{label:'jatimnetwork.com',url:'https://jatimnetwork.com/'},
+  t:{id:{desc:'Gethuk goreng dari singkong putih yang disajikan bersama tempe goreng dan cabai — gurih renyah di luar, lembut di dalam.',f:['Sering jadi teman nasi pecel dan sompil.','Camilan rakyat yang murah dan mengenyangkan.']},
+     en:{desc:'Fried gethuk of white cassava served with fried tempeh and chili — crisp outside, soft inside.',f:['Often paired with pecel rice and sompil.',"A cheap, filling people's snack."]},
+     jv:{desc:'Gethuk goreng saka pohung putih disuguhake karo tempe goreng lan lombok — kriuk njaba, alus njero.',f:['Kerep dadi kanca sega pecel lan sompil.','Jajan rakyat sing murah lan ngeyangake.']}}},
+ {id:'sompil',kind:'food',x:56,y:19,price:'Rp 5–10rb',q:'Sompil Tulungagung',loc:'Pasar pagi tradisional',src:{label:'radartulungagung',url:'https://radartulungagung.jawapos.com/'},
+  t:{id:{desc:'Lontong/ketupat disiram bumbu kelapa dan kuah gula merah; lembut dengan rasa manis-gurih khas pasar.',f:['Dijajakan pagi hari di pasar tradisional.','Perpaduan kelapa parut & gula aren jadi kuncinya.']},
+     en:{desc:'Lontong/ketupat doused in coconut sauce and palm-sugar broth; soft, with a market-style sweet-savory taste.',f:['Sold in the morning at traditional markets.','Grated coconut & palm sugar are the key.']},
+     jv:{desc:'Lontong/kupat disiram bumbu klapa lan kuah gula abang; alus, rasane manis-gurih khas pasar.',f:['Didol esuk ing pasar tradisional.','Klapa parut & gula aren dadi kuncine.']}}},
+ {id:'patik',kind:'food',x:61,y:20,price:'Rp 8–15rb',q:'Sego Patik Tulungagung',loc:'Kuliner malam',src:{label:'pinhome.id',url:'https://www.pinhome.id/blog/makanan-khas-tulungagung/'},
+  t:{id:{desc:'Nasi sayur lodeh dengan lauk sederhana khas Jawa, dibungkus daun jati; santapan malam merakyat yang menghangatkan.',f:['Aroma daun jati memberi rasa yang khas.','Hidangan kaki lima yang dicari saat malam hari.']},
+     en:{desc:'Rice with lodeh vegetable stew and simple Javanese sides, wrapped in teak leaf; a warming, down-to-earth supper.',f:['Teak-leaf aroma gives a distinctive taste.','A street-food favorite sought after at night.']},
+     jv:{desc:'Sega sayur lodeh karo lawuh prasaja khas Jawa, dibungkus godhong jati; pangan bengi rakyat sing anget.',f:['Mambu godhong jati menehi rasa khas.','Pangan kaki lima sing digoleki pas bengi.']}}},
+ {id:'ledre',kind:'food',x:54,y:22,price:'Rp 10–25rb',q:'Ledre Pisang Tulungagung',loc:'Oleh-oleh kering',src:{label:'pinhome.id',url:'https://www.pinhome.id/blog/makanan-khas-tulungagung/'},
+  t:{id:{desc:'Camilan kering tipis bercita rasa pisang yang dominan, renyah dan harum — cocok jadi buah tangan tahan lama.',f:['Aroma pisang kuat meski berbentuk kerupuk/opak.','Awet sehingga jadi oleh-oleh favorit.']},
+     en:{desc:'A thin, crisp dry snack with a strong banana flavor — a fragrant, long-lasting souvenir.',f:['Strong banana aroma despite being a cracker.','Long shelf life makes it a favorite gift.']},
+     jv:{desc:'Jajan garing tipis sing rasa gedhange kuat, kriuk lan wangi — cocok kanggo oleh-oleh sing awet.',f:['Mambu gedhange kuat senajan wujud krupuk/opak.','Awet mula dadi oleh-oleh favorit.']}}},
+ {id:'kicak',kind:'food',x:49,y:21,price:'Rp 3–8rb',q:'Kicak Tulungagung',loc:'Jajanan pasar',src:{label:'jatimnetwork.com',url:'https://jatimnetwork.com/'},
+  t:{id:{desc:'Camilan dari singkong parut dimasak dengan gula aren dan taburan kelapa — manis, gurih, dan mengenyangkan.',f:['Berbahan singkong, hasil bumi lokal yang melimpah.','Tekstur kenyal lembut beraroma gula jawa.']},
+     en:{desc:'A snack of grated cassava cooked with palm sugar and topped with coconut — sweet, savory, filling.',f:['Made from cassava, an abundant local crop.','Soft, chewy texture with palm-sugar aroma.']},
+     jv:{desc:'Jajan saka pohung parut dimasak gula aren lan ditaburi klapa — manis, gurih, ngeyangake.',f:['Bahane pohung, asil bumi lokal sing akeh.','Teksture kenyel alus mambu gula jawa.']}}},
+ {id:'gembrot',kind:'food',x:44,y:22,price:'Rp 5–12rb',q:'Gembrot Tulungagung',loc:'Warung sayur desa',src:{label:'goodnewsfromindonesia',url:'https://www.goodnewsfromindonesia.id/'},
+  t:{id:{desc:'Sayur unik dari aneka dedaunan (jantung pisang, daun semanggi) dibumbui kelapa parut muda lalu dikukus dalam daun pisang.',f:['Memanfaatkan dedaunan lokal jadi lauk gurih.','Mirip botok/buntil, sajian kampung kaya rasa.']},
+     en:{desc:'A unique dish of mixed leaves (banana blossom, clover) seasoned with young grated coconut, steamed in banana leaf.',f:['Turns local greens into a savory side.','Like botok/buntil — a flavorful village dish.']},
+     jv:{desc:'Sayur unik saka maneka godhong (jantung gedhang, semanggi) dibumboni klapa parut enom banjur dikukus ing godhong gedhang.',f:['Ngolah godhong lokal dadi lawuh gurih.','Mèmper botok/buntil, panganan ndesa sugih rasa.']}}},
+ {id:'grendol',kind:'food',x:40,y:19,price:'Rp 5–10rb',q:'Jenang Grendol Tulungagung',loc:'Pasar tradisional',src:{label:'goodnewsfromindonesia',url:'https://www.goodnewsfromindonesia.id/'},
+  t:{id:{desc:'Bubur kenyal dari tepung tapioka berbentuk butiran, disiram kuah gula merah dan santan — manis gurih menghangatkan.',f:['Butiran grendol dibuat dari tepung tapioka.','Nikmat disantap hangat saat cuaca dingin.']},
+     en:{desc:'A chewy porridge of tapioca pearls in palm-sugar sauce and coconut milk — sweet, savory, warming.',f:["The 'grendol' pearls are rolled from tapioca.",'Best eaten warm on a cold day.']},
+     jv:{desc:'Bubur kenyel saka glepung tapioka wujud butiran, disiram kuah gula abang lan santen — manis gurih anget.',f:['Butiran grendol digawe saka glepung tapioka.','Énak dipangan anget pas hawa adhem.']}}},
+ {id:'syabun',kind:'food',x:43,y:15,price:'Rp 5–12rb',q:'Jenang Syabun Tulungagung',loc:'Pasar tradisional',src:{label:'traveloka.com',url:'https://www.traveloka.com/id-id/explore/culinary'},
+  t:{id:{desc:'Jenang legit kenyal dari ketan, kelapa, dan gula, dimasak lama hingga mengilap seperti sabun — dari situ namanya.',f:['Manis legit, cocok teman teh atau kopi ijo.','Jajanan jadul yang masih dilestarikan.']},
+     en:{desc:'A chewy sweet jenang of glutinous rice, coconut and sugar, cooked long until it gleams like soap — hence the name.',f:['Richly sweet, great with tea or green coffee.','An old-school treat still kept alive.']},
+     jv:{desc:'Jenang legi kenyel saka ketan, klapa, lan gula, dimasak suwe nganti mengkilap kaya sabun — mula jenenge ngono.',f:['Manis legi, cocok karo teh utawa kopi ijo.','Jajan jadul sing isih diuri-uri.']}}},
+ // ---- culture ----
+ {id:'marmer',kind:'culture',x:38,y:25,rating:'4.5',q:'Sentra Marmer Besole Tulungagung',loc:'Besole, Besuki',src:{label:'nahwatour.com',url:'https://nahwatour.com/makanan-khas-tulungagung/'},
+  t:{id:{desc:'Tulungagung dijuluki "Kota Marmer" — penghasil marmer terbesar di Indonesia. Di sentra ini balok batu gunung disulap jadi kerajinan halus.',f:['Penambangan marmer berlangsung sejak era kolonial Belanda.','Produk marmer & onyx dikirim ke berbagai daerah hingga mancanegara.','Julukan lain kota ini: "Ingandaya" — Industri, Pangan, Budaya.']},
+     en:{desc:'Tulungagung is dubbed the "Marble City" — Indonesia\'s largest marble producer. Here mountain stone blocks become fine crafts.',f:['Marble mining dates back to the Dutch colonial era.','Its marble & onyx ship across regions and abroad.','Another nickname: "Ingandaya" — Industry, Food, Culture.']},
+     jv:{desc:'Tulungagung diarani "Kutha Marmer" — penghasil marmer paling gedhe ing Indonesia. Ing kene balok watu gunung didadekake kerajinan alus.',f:['Tambang marmer wiwit jaman kolonial Walanda.','Produk marmer & onyx dikirim tekan manca.','Jeneng liyane: "Ingandaya" — Industri, Pangan, Budaya.']}}},
+ // ---- nature / water ----
+ {id:'kandung',kind:'water',x:29,y:39,rating:'4.5',q:'Air Terjun Alas Kandung Tulungagung',loc:'Desa Tanggung, Campurdarat',src:{label:'telkomsel.com',url:'https://www.telkomsel.com/explore/cari-tahu/wisata-tulungagung'},
+  t:{id:{desc:'Air terjun bertingkat di tengah rimbun Alas Kandung dengan air jernih dan segar yang aman untuk berenang.',f:['Dikelilingi hutan sejuk — ada tubing & jembatan bambu.','Air mengalir sepanjang tahun dan tergolong bersih.']},
+     en:{desc:'A tiered waterfall deep in the lush Alas Kandung forest, with clear, cool water safe for swimming.',f:['Surrounded by cool forest — tubing & bamboo bridges.','Flows year-round and stays clean.']},
+     jv:{desc:'Grojogan tumpang-tumpang ing tengah alas Kandung sing rimbun, banyune bening lan seger, aman kanggo nglangi.',f:['Diubengi alas sing adhem — ana tubing & kreteg pring.','Banyune mili sak taun lan tetep resik.']}}},
+ {id:'kromo',kind:'water',x:58,y:42,rating:'4.3',q:'Coban Kromo Tulungagung',loc:'Desa Pelem, Campurdarat',src:{label:'detik.com',url:'https://www.detik.com/jatim/wisata'},
+  t:{id:{desc:'Air terjun dengan undakan kolam alami berair sejuk dan bening — tempat ngadem yang masih jarang terjamah.',f:['Undakan batu membentuk kolam kecil untuk berendam.','Suasana tenang, cocok melepas penat dari keramaian.']},
+     en:{desc:'A waterfall with stepped natural pools of cool, clear water — a refreshing, little-visited retreat.',f:['Stone steps form small pools to soak in.','A calm setting, perfect to unwind.']},
+     jv:{desc:'Grojogan kanthi undhak-undhakan kolam alami banyune adhem lan bening — papan ngiyup sing isih arang dijamah.',f:['Undhakan watu mbentuk kolam cilik kanggo kekum.','Swasana tentrem, cocok nyuda kesel.']}}},
+ {id:'pinus',kind:'nature',x:72,y:33,rating:'4.4',q:'Hutan Pinus Nyawangan Sendang Tulungagung',loc:'Desa Sendang',src:{label:'telkomsel.com',url:'https://www.telkomsel.com/explore/cari-tahu/wisata-tulungagung'},
+  t:{id:{desc:'Hamparan hutan pinus berudara dingin di lereng utara; rindang, menenangkan, dan penuh spot foto bertema alam.',f:['Udara sejuk khas dataran tinggi lereng Wilis.','Populer untuk healing, piknik keluarga, dan berfoto.']},
+     en:{desc:'A cool pine forest on the northern slopes; shady, calming, and full of nature-themed photo spots.',f:['Cool highland air on the slopes of Mt. Wilis.','Popular for healing, family picnics, and photos.']},
+     jv:{desc:'Alas pinus sing hawane adhem ing lereng lor; ayom, nenangake, lan akeh papan foto temane alam.',f:['Hawa adhem khas dhuwur lereng Wilis.','Populer kanggo healing, piknik, lan foto.']}}},
+ // ---- beaches (west -> east) ----
+ {id:'patuk',kind:'beach',x:10,y:53,rating:'4.3',q:'Pantai Patuk Gebang Tulungagung',loc:'Desa Jengglungharjo, Tanggunggunung',src:{label:'ayowisata.id',url:'https://ayowisata.id/wisata-tulungagung/'},
+  t:{id:{desc:'Pantai tersembunyi dengan air terjun alami yang mengalir di antara dua batu besar tepat di tepi laut.',f:['Akses cukup menantang sehingga suasananya masih perawan.','Perpaduan air terjun + pantai yang jarang ditemui.']},
+     en:{desc:"A hidden beach with a natural waterfall flowing between two boulders right at the sea's edge.",f:['Challenging access keeps it pristine.','A rare waterfall-meets-beach combo.']},
+     jv:{desc:'Pantai ndhelik kanthi grojogan alami sing mili ing antarane rong watu gedhe pas pinggir segara.',f:['Aksese rada angel mula isih prawan.','Campuran grojogan + pantai sing langka.']}}},
+ {id:'gemah',kind:'beach',x:21,y:55,rating:'4.5',q:'Pantai Gemah Tulungagung',loc:'Desa Keboireng, Besuki',src:{label:'astraotoshop.com',url:'https://www.astraotoshop.com/artikel/wisata-pantai-di-tulungagung'},
+  t:{id:{desc:'Pantai ramah keluarga di Jalur Lintas Selatan dengan pasir kecokelatan, deretan cemara, dan ombak tepi yang tenang.',f:['Ada wahana ATV, banana boat, dan flying fox.','Banyak warung seafood dan spot foto; tiket murah.','Salah satu pantai terpopuler & termudah diakses.']},
+     en:{desc:'A family-friendly beach on the South Coast Road with golden-brown sand, rows of pines, and gentle shoreline waves.',f:['ATV rides, banana boat, and a flying fox.','Plenty of seafood stalls & photo spots; cheap entry.','One of the most popular, easiest beaches to reach.']},
+     jv:{desc:'Pantai sing cocok kanggo kulawarga ing dalan Lintas Kidul, wedhine soklat, ana cemarane, ombak pinggire kalem.',f:['Ana ATV, banana boat, lan flying fox.','Akeh warung seafood lan papan foto; tikete murah.','Salah siji pantai paling rame lan gampang ditekani.']}}},
+ {id:'kedung',kind:'beach',x:35,y:57,rating:'4.6',q:'Pantai Kedung Tumpang Tulungagung',loc:'Desa Pucanglaban',src:{label:'telkomsel.com',url:'https://www.telkomsel.com/explore/cari-tahu/wisata-tulungagung'},
+  t:{id:{desc:'Ikon Tulungagung: kolam-kolam alami di antara batu karang berisi air laut sebening kristal, kerap disebut mirip Pantai Klayar.',f:['Kolam karang terbentuk dari hempasan ombak ke cekungan batu.','Spot terbaik untuk sunrise & sunset, sangat instagramable.','Hati-hati ombak besar — aman saat laut surut.']},
+     en:{desc:"Tulungagung's icon: natural pools among coral rocks filled with crystal-clear seawater, often likened to Klayar Beach.",f:['The pools were carved by crashing waves.','Best for sunrise & sunset, very photogenic.','Mind big waves — only safe at low tide.']},
+     jv:{desc:'Ikon Tulungagung: kolam-kolam alami ing antarane watu karang isi banyu segara bening kaya kristal, mèmper Pantai Klayar.',f:['Kolame kawangun saka hantaman ombak menyang cekungan watu.','Paling apik kanggo sunrise & sunset.','Ati-ati ombak gedhe — aman pas banyu surut.']}}},
+ {id:'popoh',kind:'beach',x:48,y:58,rating:'4.4',q:'Pantai Popoh Tulungagung',loc:'Desa Besole, Besuki',src:{label:'bamskvc.com',url:'https://www.bamskvc.com/wisata-pantai-tulungagung/'},
+  t:{id:{desc:'Teluk berbentuk lengkung dengan panorama karang; pantai legendaris yang lama jadi tujuan wisata warga Tulungagung.',f:['Berbentuk teluk sehingga ombak relatif teduh.','Dekat dengan Reco Sewu dan kawasan ziarah Popoh.']},
+     en:{desc:'A curved bay with rocky panoramas; a legendary beach long loved by locals.',f:['Bay-shaped, so the waves are calmer.','Near Reco Sewu and the Popoh pilgrimage area.']},
+     jv:{desc:'Teluk mlengkung kanthi panorama karang; pantai legendaris sing wis suwe dadi tujuan warga.',f:['Wujude teluk dadi ombake luwih kalem.','Cedhak Reco Sewu lan kawasan ziarah Popoh.']}}},
+ {id:'sine',kind:'beach',x:62,y:55,rating:'4.4',q:'Pantai Sine Tulungagung',loc:'Desa Kalibatur, Kalidawir',src:{label:'astraotoshop.com',url:'https://www.astraotoshop.com/artikel/wisata-pantai-di-tulungagung'},
+  t:{id:{desc:'Pantai nelayan yang terkenal sebagai salah satu titik matahari terbit terbaik di pesisir selatan Tulungagung.',f:['Favorit pemburu sunrise dengan deretan perahu nelayan.','Suasana khas perkampungan nelayan yang masih hidup.']},
+     en:{desc:'A fishing beach famous as one of the best sunrise points on the south coast.',f:['A sunrise-hunter favorite, lined with boats.','A living fishing-village atmosphere.']},
+     jv:{desc:'Pantai nelayan sing kondhang minangka panggonan paling apik nyawang srengéngé mlethek ing pesisir kidul.',f:['Favorite pemburu sunrise, akeh prahune.','Swasana kampung nelayan sing isih urip.']}}},
+ {id:'molang',kind:'beach',x:75,y:56,rating:'4.5',q:'Pantai Molang Tulungagung',loc:'Desa Pucanglaban',src:{label:'bamskvc.com',url:'https://www.bamskvc.com/wisata-pantai-tulungagung/'},
+  t:{id:{desc:'Pantai berpasir putih diapit tebing hijau; sepi, asri, dan jadi favorit untuk berkemah menatap laut lepas.',f:['Cocok untuk camping dan menikmati langit malam.','Tebing-tebing di sisi pantai menambah panorama dramatis.']},
+     en:{desc:'A white-sand beach framed by green cliffs; quiet, lush, a favorite for seaside camping.',f:['Great for camping and stargazing.','Cliffs on the sides add a dramatic view.']},
+     jv:{desc:'Pantai wedhi putih diapit tebing ijo; sepi, asri, favorit kanggo kemah nyawang segara amba.',f:['Cocok camping lan ndeleng langit bengi.','Tebing ing sisihe nambah panorama dramatis.']}}},
+ {id:'ngalur',kind:'beach',x:81,y:57,rating:'4.6',q:'Pantai Ngalur Tulungagung',loc:'Desa Jengglungharjo, Tanggunggunung',src:{label:'ayowisata.id',url:'https://ayowisata.id/wisata-tulungagung/'},
+  t:{id:{desc:'Salah satu pantai paling selatan yang masih alami; padang rumput hijau, laut biru, dan ombak menggulung indah.',f:['Surga bagi pecinta camping dan trekking ringan.','Sering disebut salah satu pantai tersembunyi terbaik Jatim.']},
+     en:{desc:'One of the southernmost untouched beaches; green meadows, blue sea, beautifully rolling waves.',f:['A paradise for campers and light trekking.',"Often named among East Java's best hidden beaches."]},
+     jv:{desc:'Salah siji pantai paling kidul sing isih alami; ara-ara ijo, segara biru, ombak sing nggulung éndah.',f:['Swarga kanggo sing seneng camping lan trekking entheng.','Kerep disebut pantai ndhelik paling apik ing Jatim.']}}},
+ {id:'pacar',kind:'beach',x:87,y:55,rating:'4.4',q:'Pantai Pacar Tulungagung',loc:'Desa Pucanglaban',src:{label:'telkomsel.com',url:'https://www.telkomsel.com/explore/cari-tahu/wisata-tulungagung'},
+  t:{id:{desc:'Keunikan langka: air terjun mini ±3 meter yang jatuh tepat di bibir pantai, berpadu dengan deburan ombak.',f:['Air tawar bertemu air laut dalam satu bingkai.','Masih tergolong hidden gem yang relatif sepi.']},
+     en:{desc:'A rare wonder: a ~3-meter mini waterfall dropping right at the shoreline, meeting the waves.',f:['Fresh water meets seawater in one frame.','Still a relatively quiet hidden gem.']},
+     jv:{desc:'Unik banget: grojogan cilik ±3 meter sing tiba pas ing pinggir pantai, campur karo ombak.',f:['Banyu tawa ketemu banyu segara ing sak bingkai.','Isih hidden gem sing rada sepi.']}}},
+ {id:'alun',kind:'culture',x:48,y:26,rating:'4.6',q:'Alun-Alun Tulungagung',loc:'Pusat Kota Tulungagung',src:{label:'radartulungagung',url:'https://radartulungagung.jawapos.com/'},
+  t:{id:{desc:'Jantung kota: ruang publik luas dengan air mancur, taman, dan kuliner malam. Titik awal terbaik untuk menjelajah Tulungagung.',f:['Ramai di malam hari dengan jajanan & komunitas.','Dikelilingi Masjid Agung dan kantor pemerintahan.','Tempat berkumpul warga & ikon kota.']},
+     en:{desc:"The city's heart: a broad public square with fountains, gardens, and night food stalls. The best starting point to explore Tulungagung.",f:['Lively at night with snacks & communities.','Flanked by the Grand Mosque and government offices.','A gathering place and city landmark.']},
+     jv:{desc:'Jantunge kutha: latar umum amba ana banyu mancur, taman, lan kuliner bengi. Titik wiwitan paling apik njelajah Tulungagung.',f:['Rame bengi karo jajanan & komunitas.','Diubengi Masjid Agung lan kantor pamarentahan.','Papan ngumpul warga & ikon kutha.']}}},
+ {id:'batik',kind:'culture',x:42,y:28,rating:'4.5',q:'Batik Tulungagung',loc:'Sentra batik • kota',src:{label:'goodnewsfromindonesia',url:'https://www.goodnewsfromindonesia.id/'},
+  t:{id:{desc:'Batik khas Tulungagung dengan motif klasik seperti Baronggung, Lung-lungan, dan Gajah Mada — warna gelap elegan dari pewarna alam.',f:['Sentra batik tersebar di Kalangbret, Majan, dan Mojosari.','Motif terinspirasi alam, marmer, dan budaya lokal.','Bisa melihat proses membatik langsung di workshop.']},
+     en:{desc:"Tulungagung's signature batik with classic motifs like Baronggung, Lung-lungan, and Gajah Mada — elegant dark tones from natural dyes.",f:['Batik centers in Kalangbret, Majan, and Mojosari.','Motifs inspired by nature, marble, and local culture.','Watch the batik-making process at workshops.']},
+     jv:{desc:'Batik khas Tulungagung mawa motif klasik kaya Baronggung, Lung-lungan, lan Gajah Mada — werna peteng elegan saka pewarna alam.',f:['Sentra batik ana ing Kalangbret, Majan, lan Mojosari.','Motife saka alam, marmer, lan budaya lokal.','Bisa ndeleng proses mbatik langsung ing workshop.']}}},
+ {id:'tari',kind:'culture',x:62,y:25,rating:'4.7',q:'Reog Kendang Tulungagung',loc:'Seni pertunjukan khas',src:{label:'goodnewsfromindonesia',url:'https://www.goodnewsfromindonesia.id/'},
+  t:{id:{desc:'Reog Kendang — tarian khas Tulungagung: enam penari menabuh kendang sambil menari serempak, menggambarkan iring-iringan prajurit.',f:['Berbeda dari Reog Ponorogo; fokus pada kendang & gerak rampak.','Sering tampil di hajatan, festival, dan upacara daerah.','Tarian lain: Tiban (ritual minta hujan) & Jaranan.']},
+     en:{desc:"Reog Kendang — Tulungagung's signature dance: six dancers drum and move in unison, depicting a soldiers' procession.",f:['Distinct from Reog Ponorogo; centered on drums & synced moves.','Performed at celebrations, festivals, and ceremonies.','Other dances: Tiban (rain ritual) & Jaranan.']},
+     jv:{desc:'Reog Kendang — tari khas Tulungagung: nem penari nabuh kendhang karo njoged bareng, nggambarake iring-iringan prajurit.',f:['Béda karo Reog Ponorogo; fokus kendhang & gerak rampak.','Kerep tampil ing hajatan, festival, lan upacara dhaerah.','Tari liya: Tiban (njaluk udan) & Jaranan.']}}},
+ {id:'rambak',kind:'food',x:57,y:27,price:'Rp 15–40rb',q:'Kerupuk rambak Tulungagung',loc:'Oleh-oleh khas • Sembung',src:{label:'nahwatour.com',url:'https://nahwatour.com/makanan-khas-tulungagung/'},
+  t:{id:{desc:'Kerupuk rambak dari kulit sapi asli — gurih, renyah, dan jadi oleh-oleh paling ikonik Tulungagung sejak puluhan tahun.',f:['Dibuat dari kulit sapi pilihan, diproses tradisional.','Nikmat dimakan langsung atau dicocol sambal petis.','Sentra rambak terkenal ada di daerah Sembung.']},
+     en:{desc:"Rambak crackers from real cowhide — savory, crunchy, and Tulungagung's most iconic souvenir for decades.",f:['Made from select cowhide, processed traditionally.','Great plain or dipped in petis chili sauce.','Famous rambak makers cluster in the Sembung area.']},
+     jv:{desc:'Krupuk rambak saka kulit sapi asli — gurih, kriuk, lan dadi oleh-oleh paling ikonik Tulungagung pirang-pirang taun.',f:['Digawe saka kulit sapi pilihan, diolah tradisional.','Énak dipangan langsung utawa dicocol sambel petis.','Sentra rambak kondhang ana ing dhaerah Sembung.']}}},
+ {id:'wonorejo',kind:'water',x:13,y:33,rating:'4.5',q:'Bendungan Wonorejo Tulungagung',loc:'Desa Wonorejo, Pagerwojo',src:{label:'telkomsel.com',url:'https://www.telkomsel.com/explore/cari-tahu/wisata-tulungagung'},
+  t:{id:{desc:'Salah satu bendungan terbesar di Asia Tenggara; waduk luas berlatar perbukitan, lengkap dengan wisata perahu dan taman air.',f:['Menyimpan air untuk irigasi, air baku, dan listrik.','Bisa naik perahu mengelilingi waduk yang jernih.','Pemandangan kabut pagi di tepi waduk sangat memukau.']},
+     en:{desc:"One of Southeast Asia's largest dams; a vast reservoir backed by hills, with boat rides and a water park.",f:['Stores water for irrigation, supply, and power.','Take a boat across the clear reservoir.','Morning mist over the water is breathtaking.']},
+     jv:{desc:'Salah siji bendungan paling gedhe ing Asia Tenggara; waduk amba latar papredèn, ana prau wisata lan taman banyu.',f:['Nyimpen banyu kanggo irigasi, banyu baku, lan listrik.','Bisa numpak prau ngubengi waduk sing bening.','Pedhut esuk ing pinggir waduk éndah banget.']}}},
+ {id:'gunungbudeng',kind:'nature',x:20,y:42,rating:'4.5',q:'Gunung Budheg Tulungagung',loc:'Boyolangu / Campurdarat',src:{label:'telkomsel.com',url:'https://www.telkomsel.com/explore/cari-tahu/wisata-tulungagung'},
+  t:{id:{desc:'Bukit batu ikonik dengan legenda Joko Budheg yang membatu. Pendakian singkat menuju puncak berpanorama kota dan sawah.',f:['Cocok untuk pendaki pemula — sekitar 30–60 menit ke puncak.','Spot sunrise & sunset favorit berlatar perbukitan.','Ada gua dan tebing yang sering dipakai panjat tebing.']},
+     en:{desc:'An iconic rocky hill tied to the legend of Joko Budheg turning to stone. A short hike to a summit overlooking town and rice fields.',f:['Great for beginner hikers — about 30–60 minutes up.','A favorite sunrise & sunset spot over the hills.','Caves and cliffs are popular for rock climbing.']},
+     jv:{desc:'Gunung watu ikonik kanthi legendha Joko Budheg sing dadi watu. Munggah sedhela tekan pucuk, panorama kutha lan sawah.',f:['Cocok kanggo pendaki pemula — kira-kira 30–60 menit.','Papan sunrise & sunset favorit latar papredèn.','Ana guwa lan tebing kanggo panjat tebing.']}}},
+ {id:'srabah',kind:'nature',x:30,y:32,rating:'4.4',q:'Wisata Alam Srabah Pagerwojo',loc:'Desa Segawe, Pagerwojo',src:{label:'ayowisata.id',url:'https://ayowisata.id/wisata-tulungagung/'},
+  t:{id:{desc:'Wisata alam dan bumi perkemahan di tengah hutan pinus Pagerwojo yang sejuk — cocok untuk camping, outbound, dan healing.',f:['Hutan pinus rapat dengan udara dingin pegunungan.','Tersedia area kemah dan jalur trekking ringan.','Sering jadi lokasi kegiatan pramuka & outbound.']},
+     en:{desc:'A nature and camping site amid the cool pine forest of Pagerwojo — perfect for camping, outbound, and healing.',f:['Dense pine forest with cool mountain air.','Camping grounds and easy trekking trails.','A popular spot for scouting & team activities.']},
+     jv:{desc:'Wisata alam lan bumi perkemahan ing tengah alas pinus Pagerwojo sing adhem — cocok kemah, outbound, lan healing.',f:['Alas pinus kandel hawane adhem pegunungan.','Ana papan kemah lan trek trekking entheng.','Kerep dadi panggonan pramuka & outbound.']}}},
+ {id:'senggani',kind:'water',x:80,y:29,rating:'4.4',q:'Jurang Senggani Sendang Tulungagung',loc:'Desa Nglurup, Sendang',src:{label:'detik.com',url:'https://www.detik.com/jatim/wisata'},
+  t:{id:{desc:'Air terjun tersembunyi di kawasan Sendang dengan kolam alami dan tebing hijau yang menyegarkan.',f:['Air jernih dingin langsung dari mata air pegunungan.','Trek menuju lokasi melewati hutan yang asri.']},
+     en:{desc:'A hidden waterfall in the Sendang highlands with natural pools and refreshing green cliffs.',f:['Clear, cold water straight from mountain springs.','The trail in passes through lush forest.']},
+     jv:{desc:'Grojogan ndhelik ing wilayah Sendang kanthi kolam alami lan tebing ijo sing nyegerake.',f:['Banyu bening adhem langsung saka tuk pegunungan.','Trek menyang lokasi liwat alas sing asri.']}}},
+ {id:'lemparan',kind:'nature',x:86,y:42,rating:'4.4',q:'Bukit Lemparan Tulungagung',loc:'Kawasan perbukitan',src:{label:'ayowisata.id',url:'https://ayowisata.id/wisata-tulungagung/'},
+  t:{id:{desc:'Bukit dengan panorama negeri di atas awan; tempat terbaik menikmati matahari terbenam dan lautan kabut di pagi hari.',f:['Pemandangan perbukitan dan kota dari ketinggian.','Spot berburu sunset dan negeri di atas awan.']},
+     en:{desc:"A hilltop 'land above the clouds'; one of the best places for sunset and a morning sea of mist.",f:['Sweeping views of hills and town from above.','A prime spot for sunsets and cloud seas.']},
+     jv:{desc:'Bukit kanthi panorama negeri ndhuwur méga; papan paling apik nyawang surup lan segara pedhut esuk.',f:['Pemandangan papredèn lan kutha saka dhuwur.','Papan mburu surup lan negeri ndhuwur méga.']}}},
+];
+
+/* proper-noun names (same across languages) */
+const NAMES={lodho:'Ayam Lodho',kopiijo:'Kopi Ijo',gethuk:'Gethuk Pisang',sredek:'Sredek',sompil:'Sompil',patik:'Sego Patik',ledre:'Ledre / Opak Pisang',kicak:'Kicak',gembrot:'Gembrot',grendol:'Jenang Grendol',syabun:'Jenang Syabun',marmer:'Sentra Marmer Besole',kandung:'Air Terjun Alas Kandung',kromo:'Coban Kromo',pinus:'Hutan Pinus Nyawangan',patuk:'Pantai Patuk Gebang',gemah:'Pantai Gemah',kedung:'Pantai Kedung Tumpang',popoh:'Pantai Popoh',sine:'Pantai Sine',molang:'Pantai Molang',ngalur:'Pantai Ngalur',pacar:'Pantai Pacar',gunungbudeng:'Gunung Budheg',wonorejo:'Bendungan Wonorejo',srabah:'Wisata Alam Srabah',senggani:'Jurang Senggani',lemparan:'Bukit Lemparan',alun:'Alun-Alun Tulungagung',batik:'Batik Tulungagung',rambak:'Kerupuk Rambak',tari:'Reog Kendang'};
+SPOTS.forEach(s=>{s.name=NAMES[s.id]||s.id;});
+
+/* traveler metadata: entry fee, best time, distance from town, good-for tags */
+const META={
+ gemah:{fee:'Rp 10rb',best:'sunrise',dist:30,good:['family','photo','swim']},
+ kedung:{fee:'Rp 10rb',best:'sunrise',dist:35,good:['photo','sunrise','nature']},
+ popoh:{fee:'Rp 10rb',best:'sunset',dist:30,good:['family','photo']},
+ sine:{fee:'Rp 5rb',best:'sunrise',dist:35,good:['sunrise','photo']},
+ molang:{fee:'Rp 10rb',best:'sunset',dist:40,good:['camp','photo','nature']},
+ pacar:{fee:'Rp 10rb',best:'day',dist:40,good:['photo','nature']},
+ patuk:{fee:'Rp 5rb',best:'day',dist:38,good:['nature','photo']},
+ ngalur:{fee:'Rp 10rb',best:'sunrise',dist:40,good:['camp','nature','photo']},
+ kandung:{fee:'Rp 10rb',best:'day',dist:12,good:['swim','family','nature']},
+ kromo:{fee:'Rp 5rb',best:'day',dist:15,good:['nature','relax']},
+ pinus:{fee:'Rp 10rb',best:'morning',dist:25,good:['photo','relax','family']},
+ marmer:{fee:'free',best:'day',dist:12,good:['culture','souvenir']},
+ lodho:{best:'anytime',good:['food']},kopiijo:{best:'anytime',good:['food','relax']},gethuk:{best:'anytime',good:['food','souvenir']},
+ sredek:{best:'morning',good:['food']},sompil:{best:'morning',good:['food']},patik:{best:'night',good:['food']},
+ ledre:{best:'anytime',good:['food','souvenir']},kicak:{best:'anytime',good:['food']},gembrot:{best:'anytime',good:['food']},
+ grendol:{best:'anytime',good:['food']},syabun:{best:'anytime',good:['food','souvenir']},
+ alun:{fee:'free',best:'anytime',dist:0,good:['family','culture','photo']},batik:{best:'anytime',dist:2,good:['culture','souvenir','photo']},tari:{best:'anytime',dist:0,good:['culture','photo']},rambak:{best:'anytime',good:['food','souvenir','culture']},
+ wonorejo:{fee:'Rp 10rb',best:'morning',dist:12,good:['family','photo','relax']},gunungbudeng:{fee:'Rp 5rb',best:'sunrise',dist:12,good:['photo','sunrise','nature']},srabah:{fee:'Rp 5rb',best:'morning',dist:18,good:['camp','nature','relax']},senggani:{fee:'Rp 5rb',best:'day',dist:22,good:['nature','photo','swim']},lemparan:{fee:'Rp 5rb',best:'sunset',dist:25,good:['sunset','photo','nature']},
+};
+SPOTS.forEach(s=>Object.assign(s,META[s.id]||{}));
+/* Wikimedia Commons search queries (best first) for real in-game photos */
+const WIKI={
+ lodho:['Ayam lodho'],kopiijo:['Kopi ijo Tulungagung','Kopi ijo'],gethuk:['Gethuk pisang','Gethuk'],
+ sredek:['Gethuk goreng','Gethuk'],sompil:['Sompil','Lontong sayur'],patik:['Sego patik','Nasi pecel'],
+ ledre:['Ledre pisang','Ledre'],kicak:['Kicak makanan'],gembrot:['Gembrot makanan','Botok'],grendol:['Jenang grendol','Bubur candil'],
+ syabun:['Jenang'],marmer:['Marmer Tulungagung','Marble Tulungagung','Onyx Tulungagung'],
+ kandung:['Air Terjun Alas Kandung','Alas Kandung'],kromo:['Coban Kromo','Air terjun Tulungagung'],
+ pinus:['Hutan Pinus Nyawangan','Hutan pinus','Pinus Tulungagung'],
+ patuk:['Pantai Patuk Gebang','Pantai Tulungagung'],gemah:['Pantai Gemah','Pantai Gemah Tulungagung'],
+ kedung:['Pantai Kedung Tumpang','Kedung Tumpang'],popoh:['Pantai Popoh','Pantai Popoh Tulungagung'],
+ sine:['Pantai Sine Tulungagung','Pantai Sine'],molang:['Pantai Molang','Pantai Tulungagung'],
+ ngalur:['Pantai Ngalur','Pantai Tulungagung'],pacar:['Pantai Pacar Tulungagung','Pantai Pacar'],
+ alun:['Alun-alun Tulungagung','Tulungagung'],batik:['Batik Tulungagung','Batik Jawa Timur'],tari:['Reog Kendang','Reog Tulungagung'],rambak:['Kerupuk rambak','Krupuk rambak'],
+ wonorejo:['Bendungan Wonorejo','Waduk Wonorejo'],gunungbudeng:['Gunung Budheg','Gunung Budeg Tulungagung'],srabah:['Srabah Tulungagung','Hutan pinus Pagerwojo','Hutan pinus'],
+ senggani:['Jurang Senggani','Air terjun Sendang Tulungagung','Air terjun Tulungagung'],lemparan:['Bukit Lemparan Tulungagung','Negeri di atas awan Tulungagung','Bukit Tulungagung'],
+};
+SPOTS.forEach(s=>{s.wiki=WIKI[s.id]||[s.name];});
+/* enum dictionaries */
+const BEST={sunrise:{id:'Matahari terbit',en:'Sunrise',jv:'Srengéngé mlethek'},sunset:{id:'Matahari terbenam',en:'Sunset',jv:'Surup'},morning:{id:'Pagi hari',en:'Morning',jv:'Esuk'},day:{id:'Siang hari',en:'Daytime',jv:'Awan'},night:{id:'Malam hari',en:'Night',jv:'Bengi'},anytime:{id:'Kapan saja',en:'Anytime',jv:'Kapan waé'}};
+const GOOD={photo:{id:'Foto',en:'Photography',jv:'Foto'},swim:{id:'Berenang',en:'Swimming',jv:'Nglangi'},camp:{id:'Berkemah',en:'Camping',jv:'Kémah'},family:{id:'Keluarga',en:'Family',jv:'Kulawarga'},sunrise:{id:'Sunrise',en:'Sunrise',jv:'Sunrise'},nature:{id:'Alam',en:'Nature',jv:'Alam'},culture:{id:'Budaya',en:'Culture',jv:'Budaya'},food:{id:'Kuliner',en:'Foodie',jv:'Pangan'},souvenir:{id:'Oleh-oleh',en:'Souvenir',jv:'Oleh-oleh'},relax:{id:'Bersantai',en:'Relaxing',jv:'Santai'},sunset:{id:'Sunset',en:'Sunset',jv:'Surup'}};
+/* About Tulungagung (traveler overview) */
+const ABOUT={
+ id:[['Di mana','Tulungagung adalah kabupaten di selatan Jawa Timur, sekitar 150 km barat daya Surabaya dan 130 km dari Malang.'],['Cara ke sana','Naik kereta ke Stasiun Tulungagung (jalur Surabaya–Kediri–Blitar), atau ±3–4 jam berkendara dari Surabaya. Bandara terdekat: Kediri (DHX) & Surabaya (SUB).'],['Terkenal akan','Dijuluki Kota Marmer — penghasil marmer terbesar di Indonesia. Terkenal dengan pantai-pantai tersembunyi pesisir selatan, kopi ijo, dan ayam lodho.'],['Waktu terbaik','Musim kemarau (April–Oktober) untuk pantai & air terjun. Pagi hari untuk sunrise; hari kerja lebih sepi.'],['Perlu diketahui','Mata uang: Rupiah (IDR). Bahasa: Indonesia & Jawa. Wisata alam bertiket murah (Rp 5–15rb). Bawa uang tunai untuk warung & parkir.']],
+ en:[['Where it is','Tulungagung is a regency in southern East Java, Indonesia — about 150 km southwest of Surabaya and 130 km from Malang.'],['Getting there','Take a train to Tulungagung Station (Surabaya–Kediri–Blitar line), or ~3–4 hours by car from Surabaya. Nearest airports: Kediri (DHX) & Surabaya (SUB).'],['Known for','Nicknamed the Marble City — Indonesia\'s largest marble producer. Famous for hidden south-coast beaches, kopi ijo (green coffee), and ayam lodho.'],['Best time','Dry season (April–October) for beaches & waterfalls. Early morning for sunrise spots; weekdays are quieter.'],['Good to know','Currency: Indonesian Rupiah (IDR). Languages: Indonesian & Javanese. Nature spots charge a small entry fee (Rp 5,000–15,000). Carry cash for stalls & parking.']],
+ jv:[['Ngendi panggonané','Tulungagung iku kabupaten ing kidul Jawa Timur, kira-kira 150 km kidul-kulon Surabaya lan 130 km saka Malang.'],['Carané mrana','Numpak sepur menyang Stasiun Tulungagung (jalur Surabaya–Kediri–Blitar), utawa ±3–4 jam nyetir saka Surabaya. Bandara cedhak: Kediri (DHX) & Surabaya (SUB).'],['Kondhang amarga','Diarani Kutha Marmer — penghasil marmer paling gedhe ing Indonesia. Kondhang karo pantai ndhelik pesisir kidul, kopi ijo, lan ayam lodho.'],['Wektu paling apik','Mangsa ketiga (April–Oktober) kanggo pantai & grojogan. Esuk kanggo sunrise; dina kerja luwih sepi.'],['Sing perlu dingerteni','Dhuwit: Rupiah (IDR). Basa: Indonesia & Jawa. Papan alam tiketé murah (Rp 5–15èwu). Gawa dhuwit cash kanggo warung & parkir.']],
+};
+
+/* guided tour order = north(town foods) -> culture -> waterfalls -> coast W->E */
+const TOUR = ['alun','lodho','rambak','kopiijo','gethuk','sredek','sompil','patik','ledre','kicak','gembrot','grendol','syabun','batik','tari','marmer','wonorejo','gunungbudeng','srabah','kandung','kromo','senggani','pinus','lemparan','patuk','gemah','kedung','popoh','sine','molang','ngalur','pacar'];
+
+/* ---------------- NPCs (trilingual) ---------------- */
+const NPCS = [
+ {id:'lurah',x:50,y:24,face:'#caa24a',
+  t:{id:['Sugeng rawuh ing Tulungagung, Arka! Kota marmer, kota seribu rasa.','Ikuti jalan setapak dan kompas 🧭 di bawah — dia menunjuk tempat berikutnya yang sebaiknya kamu kunjungi.','Mulailah dari kuliner di sekitar alun-alun ini, lalu turun ke selatan menuju pantai. Selamat menjelajah!'],
+     en:["Welcome to Tulungagung, Arka! The marble city, the city of a thousand flavors.",'Follow the trail and the compass 🧭 below — it points to the next place you should visit.','Start with the foods around this square, then head south to the beaches. Enjoy exploring!'],
+     jv:['Sugeng rawuh ing Tulungagung, Arka! Kutha marmer, kutha sewu rasa.','Tutna dalan setapak lan kompas 🧭 ing ngisor — nuduhake papan sabanjure sing apik mbok parani.','Wiwiti saka kuliner sak ubenge alun-alun iki, banjur mudhun ngidul menyang pantai. Sugeng njelajah!']}},
+ {id:'mbok',x:46,y:20,face:'#c2532f',
+  t:{id:['Wis mangan, Le? Cicipi ayam lodho — ayam bakar disiram santan rempah, gurih pedhes!','Tiap tempat makanan ada harga & lokasi Google Maps-nya. Tinggal ketuk "Buka Maps", ketemu warungnya.'],
+     en:["Have you eaten, dear? Try ayam lodho — grilled chicken in spiced coconut milk, savory and spicy!",'Every food has its price and a Google Maps location. Just tap "Open Maps" to find the stall.'],
+     jv:['Wis mangan, Le? Cicipi ayam lodho — pitik bakar disiram santen rempah, gurih pedhes!','Saben panganan ana rega lan lokasi Google Maps-é. Tinggal pencet "Bukak Maps", ketemu warunge.']}},
+ {id:'nelayan',x:48,y:54,face:'#2e7c8c',
+  t:{id:['Laut kidul iki sugih, Mas. Subuh-subuh nyawang srengéngé mlethek ing Pantai Sine, sedhep tenan.','Ati-ati nèk ombak gedhe ya. Kedung Tumpang apik, ning mlebu pas banyu surut waé.'],
+     en:['The southern sea is rich, friend. Watching sunrise at Sine Beach at dawn is wonderful.','Be careful with big waves. Kedung Tumpang is beautiful, but only enter at low tide.'],
+     jv:['Laut kidul iki sugih, Mas. Subuh-subuh nyawang srengéngé mlethek ing Pantai Sine, sedhep tenan.','Ati-ati nèk ombak gedhe ya. Kedung Tumpang apik, ning mlebu pas banyu surut waé.']}},
+ {id:'pemahat',x:38,y:27,face:'#8a8580',
+  t:{id:['Watu marmer soko gunung iki tak ukir dadi meja, patung, apa waé. Tulungagung pancen kutha marmer.','Wis tekan ngendi waé petualananmu? Terus mlaku, isih akeh sing durung mbok delok!'],
+     en:['I carve this mountain marble into tables, statues, anything. Tulungagung truly is the marble city.','How far has your adventure gone? Keep walking — much is still left to see!'],
+     jv:['Watu marmer soko gunung iki tak ukir dadi meja, patung, apa waé. Tulungagung pancèn kutha marmer.','Wis tekan ngendi waé petualananmu? Terus mlaku, isih akeh sing durung mbok delok!']}},
+];
+
+/* ---------------- world constants ---------------- */
+const TILE=32, MAPW=98, MAPH=64, SAVE_KEY='jelajah_tulungagung_v2';
+const T={GRASS:0,GRASS2:1,SAND:2,SHALLOW:3,SEA:4,DEEP:5,FOREST:6,PATH:7,PLAZA:8,ROCK:9,FLOWER:10,PINE:11};
+const SOLID=new Set([T.SEA,T.DEEP,T.FOREST,T.ROCK,T.PINE]);
+const map=new Uint8Array(MAPW*MAPH);
+function gidx(x,y){return y*MAPW+x;}
+function noise(x,y){let n=Math.sin(x*12.9898+y*78.233)*43758.5453;return n-Math.floor(n);}
+
+function genWorld(){
+  for(let y=0;y<MAPH;y++)for(let x=0;x<MAPW;x++){
+    const coast=50+Math.sin(x*0.18)*2.4+Math.sin(x*0.05)*3.5;
+    let tt=T.GRASS;
+    if(y>coast+8)tt=T.DEEP; else if(y>coast+4)tt=T.SEA; else if(y>coast+2)tt=T.SHALLOW; else if(y>coast)tt=T.SAND;
+    else{const n=noise(x*0.9,y*0.9); tt=n>0.86?T.GRASS2:(n>0.8?T.FLOWER:T.GRASS);}
+    map[gidx(x,y)]=tt;
+  }
+  // lighter forest belt (less maze)
+  for(let y=28;y<46;y++)for(let x=2;x<MAPW-2;x++){
+    const n=noise(x*0.4+5,y*0.4+9);
+    if(n>0.72&&map[gidx(x,y)]===T.GRASS)map[gidx(x,y)]=n>0.9?T.PINE:T.FOREST;
+  }
+  for(let y=2;y<9;y++)for(let x=2;x<MAPW-2;x++){if(noise(x*0.5,y*0.5+30)>0.62&&map[gidx(x,y)]<2)map[gidx(x,y)]=T.PINE;}
+  // town plaza
+  for(let y=10;y<27;y++)for(let x=36;x<66;x++){const dx=(x-51)/15,dy=(y-19)/9;if(dx*dx+dy*dy<1)map[gidx(x,y)]=(Math.abs(x-51)<1||Math.abs(y-19)<1)?T.PATH:T.PLAZA;}
+  // clearings around spots/npcs (radius 3 = roomy)
+  const clear=(cx,cy)=>{for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=cx+dx,y=cy+dy;if(x<1||y<1||x>=MAPW-1||y>=MAPH-1)continue;const tt=map[gidx(x,y)];if(tt===T.FOREST||tt===T.PINE||tt===T.ROCK)map[gidx(x,y)]=T.GRASS;if((tt===T.SEA||tt===T.DEEP)&&dy<=0)map[gidx(x,y)]=T.SAND;}};
+  SPOTS.forEach(s=>clear(s.x,s.y)); NPCS.forEach(n=>clear(n.x,n.y));
+  // guided trail: hub -> through every TOUR spot, laying a clear walkable path
+  const landOK=tt=>!(tt===T.SEA||tt===T.DEEP||tt===T.SHALLOW);
+  const lay=(x,y)=>{if(x<1||y<1||x>=MAPW-1||y>=MAPH-1)return;const tt=map[gidx(x,y)];if(landOK(tt)&&tt!==T.PLAZA)map[gidx(x,y)]=T.PATH;};
+  const line=(x0,y0,x1,y1)=>{let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx-dy,x=x0,y=y0;
+    while(true){lay(x,y);lay(x+1,y);lay(x,y+1);if(x===x1&&y===y1)break;const e2=2*err;if(e2>-dy){err-=dy;x+=sx;}if(e2<dx){err+=dx;y+=sy;}}};
+  let prev=[51,24];
+  TOUR.forEach(id=>{const s=SPOTS.find(o=>o.id===id);line(prev[0],prev[1],s.x,s.y);prev=[s.x,s.y];});
+}
+genWorld();
+
+/* ---------------- engine ---------------- */
+const cv=document.getElementById('world'),ctx2=cv.getContext('2d');
+let VIEW={w:0,h:0,dpr:1,zoom:2};
+function resize(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  VIEW.dpr=dpr;VIEW.w=window.innerWidth;VIEW.h=window.innerHeight;
+  cv.width=Math.floor(VIEW.w*dpr);cv.height=Math.floor(VIEW.h*dpr);
+  const base=Math.min(VIEW.w,VIEW.h);
+  VIEW.zoom=base<560?2.2:base<900?2.0:1.85;
+  ctx2.imageSmoothingEnabled=false;
+}
+window.addEventListener('resize',resize);resize();
+
+const player={x:51*TILE,y:25*TILE,dir:'down',moving:false,run:false,speed:2.9,anim:0};
+const cam={x:player.x,y:player.y};
+let dust=[];
+
+const keys={};
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=true;if(k==='e'||k===' ')tryInteract();if(k==='escape')closeTop();if(k==='b')toggleBook();});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+
+let joyVec={x:0,y:0},joyActive=false;
+const joy=document.getElementById('joy'),nub=joy.querySelector('.nub');
+function joyStart(e){joyActive=true;joyMove(e);}
+function joyMove(e){if(!joyActive)return;const tt=e.touches?e.touches[0]:e;const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=tt.clientX-cx,dy=tt.clientY-cy;const max=r.width/2-10,d=Math.hypot(dx,dy);if(d>max){dx=dx/d*max;dy=dy/d*max;}nub.style.transform=`translate(${dx}px,${dy}px)`;joyVec.x=dx/max;joyVec.y=dy/max;}
+function joyEnd(){joyActive=false;joyVec.x=0;joyVec.y=0;nub.style.transform='translate(0,0)';}
+joy.addEventListener('touchstart',joyStart,{passive:true});joy.addEventListener('touchmove',joyMove,{passive:true});joy.addEventListener('touchend',joyEnd);joy.addEventListener('touchcancel',joyEnd);
+joy.addEventListener('mousedown',joyStart);addEventListener('mousemove',e=>{if(joyActive&&!('ontouchstart'in window))joyMove(e);});addEventListener('mouseup',()=>{if(joyActive&&!('ontouchstart'in window))joyEnd();});
+document.getElementById('actBtn').addEventListener('click',tryInteract);
+if('ontouchstart'in window||navigator.maxTouchPoints>0)document.getElementById('touch').style.display='block';
+
+function solidAt(px,py){const tx=Math.floor(px/TILE),ty=Math.floor(py/TILE);if(tx<0||ty<0||tx>=MAPW||ty>=MAPH)return true;return SOLID.has(map[gidx(tx,ty)]);}
+function canMove(nx,ny){const r=8;return !solidAt(nx-r,ny+10)&&!solidAt(nx+r,ny+10)&&!solidAt(nx-r,ny+14)&&!solidAt(nx+r,ny+14);}
+
+let visited=new Set();
+let wishlist=new Set();
+function loadSave(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s){if(s.visited)visited=new Set(s.visited);if(s.wishlist)wishlist=new Set(s.wishlist);}}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({visited:[...visited],wishlist:[...wishlist]}));}catch(e){}}
+loadSave();
+
+let nearTarget=null;
+function findNear(){let best=null,bd=46*46;const all=[...SPOTS.map(s=>({o:s,_t:'spot'})),...NPCS.map(n=>({o:n,_t:'npc'}))];for(const it of all){const o=it.o;const ox=o.x*TILE+TILE/2,oy=o.y*TILE+TILE/2;const dx=ox-player.x,dy=oy-(player.y+12),d=dx*dx+dy*dy;if(d<bd){bd=d;best={...it};}}return best;}
+function tryInteract(){if(dialogEl.style.display==='block'){advanceDialog();return;}if(document.querySelector('.scrim.show'))return;const n=nearTarget;if(!n)return;if(n._t==='npc')openDialog(n.o);else openSpot(n.o.id);}
+
+/* objective (guided tour) */
+function nextObjective(){for(const id of TOUR){if(!visited.has(id))return SPOTS.find(s=>s.id===id);}return null;}
+
+/* ---------------- render ---------------- */
+function tileColor(tt,x,y){const n=noise(x*0.7+1,y*0.7+3),i4=(n*4)|0,i3=(n*3)|0;switch(tt){
+  case T.GRASS:case T.FLOWER:return ['#5f9f46','#67a64d','#6cab51','#5b9b42'][i4];
+  case T.GRASS2:return '#56953e';
+  case T.SAND:return ['#e7cd92','#ecd49a','#e3c587','#efd9a2'][i4];
+  case T.SHALLOW:return '#5fbfc6';case T.SEA:return '#2f93a8';case T.DEEP:return '#1c6a82';
+  case T.PATH:return ['#cdb07e','#d4ba86','#c7a877','#d8bd8a'][i4];
+  case T.PLAZA:return ['#d6c9ad','#dccfb3','#d0c2a4'][i3];
+  case T.FOREST:return '#5f9f46';case T.PINE:return '#56953e';case T.ROCK:return '#9a9389';default:return '#67a64d';}}
+function drawTreeP(sx,sy,s,pine){
+  ctx2.fillStyle='rgba(0,0,0,.13)';ctx2.beginPath();ctx2.ellipse(sx+s/2,sy+s*0.93,s*0.32,s*0.11,0,0,7);ctx2.fill();
+  ctx2.fillStyle='#7c4a25';ctx2.fillRect(sx+s*0.42,sy+s*0.55,s*0.16,s*0.4);
+  if(pine){ctx2.fillStyle='#2c6b3c';for(let i=0;i<3;i++){const w=s*(0.6-i*0.15),yy=sy+s*0.1+i*s*0.22;ctx2.beginPath();ctx2.moveTo(sx+s/2,yy);ctx2.lineTo(sx+s/2-w/2,yy+s*0.28);ctx2.lineTo(sx+s/2+w/2,yy+s*0.28);ctx2.closePath();ctx2.fill();}ctx2.fillStyle='#3f8a50';ctx2.fillRect(sx+s*0.30,sy+s*0.30,s*0.1,s*0.1);}
+  else{ctx2.fillStyle='#2f7a3e';ctx2.beginPath();ctx2.arc(sx+s/2,sy+s*0.42,s*0.35,0,7);ctx2.fill();ctx2.fillStyle='#3f9450';ctx2.beginPath();ctx2.arc(sx+s*0.40,sy+s*0.36,s*0.18,0,7);ctx2.fill();ctx2.fillStyle='#54a862';ctx2.beginPath();ctx2.arc(sx+s*0.34,sy+s*0.32,s*0.08,0,7);ctx2.fill();}}
+
+function drawWorld(t){
+  const z=VIEW.zoom,dpr=VIEW.dpr;
+  ctx2.setTransform(dpr,0,0,dpr,0,0);ctx2.clearRect(0,0,VIEW.w,VIEW.h);
+  cam.x+=(player.x-cam.x)*0.12;cam.y+=(player.y-cam.y)*0.12;
+  const camPX=cam.x*z-VIEW.w/2,camPY=cam.y*z-VIEW.h/2;
+  ctx2.save();ctx2.translate(-camPX,-camPY);ctx2.scale(z,z);
+  const x0=Math.max(0,Math.floor(camPX/z/TILE)-1),x1=Math.min(MAPW,Math.ceil((camPX+VIEW.w)/z/TILE)+1);
+  const y0=Math.max(0,Math.floor(camPY/z/TILE)-1),y1=Math.min(MAPH,Math.ceil((camPY+VIEW.h)/z/TILE)+1);
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const tt=map[gidx(x,y)],sx=x*TILE,sy=y*TILE;
+    ctx2.fillStyle=tileColor(tt,x,y);ctx2.fillRect(sx,sy,TILE+1,TILE+1);
+    if(tt===T.GRASS||tt===T.GRASS2){const n=noise(x*2.1,y*2.3);if(n>0.7){ctx2.fillStyle='rgba(38,86,38,.20)';ctx2.fillRect(sx+9,sy+18,2,5);ctx2.fillRect(sx+12,sy+16,2,7);ctx2.fillRect(sx+15,sy+19,2,5);}}
+    else if(tt===T.SHALLOW||tt===T.SEA||tt===T.DEEP){const sh=Math.sin((x*0.6+y*0.4)+t*0.0018);if(sh>0.55){ctx2.fillStyle='rgba(255,255,255,.16)';ctx2.fillRect(sx+6,sy+TILE*0.4,TILE*0.5,2);}}
+    else if(tt===T.FLOWER){const c=['#e7c66b','#e0556b','#f4f4f4','#d98cc4'][(x*7+y*3)%4];ctx2.fillStyle='#3f7d2e';ctx2.fillRect(sx+9,sy+13,1,4);ctx2.fillRect(sx+19,sy+21,1,4);ctx2.fillStyle=c;ctx2.fillRect(sx+8,sy+10,4,4);ctx2.fillRect(sx+18,sy+18,4,4);}
+    else if(tt===T.PATH){ctx2.fillStyle='rgba(120,85,45,.16)';ctx2.fillRect(sx+4,sy+6,3,3);ctx2.fillRect(sx+20,sy+18,3,3);ctx2.fillRect(sx+12,sy+24,2,2);}
+    if(tt===T.SAND){const below=y+1<MAPH?map[gidx(x,y+1)]:0;if(below===T.SHALLOW||below===T.SEA){const f=Math.sin(x*0.8+t*0.004);ctx2.fillStyle='rgba(255,255,255,'+(0.32+f*0.18).toFixed(2)+')';ctx2.fillRect(sx,sy+TILE-4+f*2,TILE+1,4);}}}
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const tt=map[gidx(x,y)];
+    if(tt===T.FOREST)drawTreeP(x*TILE,y*TILE-6,TILE,false);
+    else if(tt===T.PINE)drawTreeP(x*TILE,y*TILE-6,TILE,true);
+    else if(tt===T.ROCK){ctx2.fillStyle='#8b847a';ctx2.beginPath();ctx2.arc(x*TILE+16,y*TILE+18,11,0,7);ctx2.fill();}}
+  // dust under markers
+  for(const d of dust){ctx2.globalAlpha=d.a;ctx2.fillStyle='#cdb07e';ctx2.beginPath();ctx2.arc(d.x,d.y,d.r,0,7);ctx2.fill();ctx2.globalAlpha=1;}
+  // welcome floor text at the town square (“welcome” above “TULUNGAGUNG”)
+  ctx2.save();ctx2.textAlign='center';ctx2.textBaseline='middle';
+  ctx2.font='800 18px "Trebuchet MS",sans-serif';ctx2.fillStyle='rgba(45,33,20,.34)';
+  ctx2.fillText((UI.welcome[lang]||UI.welcome.id),51*TILE+16,22*TILE);
+  ctx2.font='800 44px "Trebuchet MS",sans-serif';
+  ctx2.lineWidth=4;ctx2.strokeStyle='rgba(255,248,228,.55)';ctx2.strokeText('TULUNGAGUNG',51*TILE+16,23.9*TILE);
+  ctx2.fillStyle='rgba(45,33,20,.42)';ctx2.fillText('TULUNGAGUNG',51*TILE+16,23.9*TILE);
+  ctx2.restore();
+  const obj=nextObjective();
+  for(const s of SPOTS)drawMarker(s.x*TILE+TILE/2,s.y*TILE+TILE/2,s,t,obj&&obj.id===s.id);
+  for(const n of NPCS)drawNPC(n.x*TILE+TILE/2,n.y*TILE+TILE/2,n,t);
+  drawPlayer(t);
+  ctx2.restore();
+  const vg=ctx2.createRadialGradient(VIEW.w/2,VIEW.h*0.46,Math.min(VIEW.w,VIEW.h)*0.32,VIEW.w/2,VIEW.h*0.5,Math.max(VIEW.w,VIEW.h)*0.72);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(15,35,28,.28)');ctx2.fillStyle=vg;ctx2.fillRect(0,0,VIEW.w,VIEW.h);
+}
+function rrect(x,y,w,h,r){ctx2.beginPath();ctx2.moveTo(x+r,y);ctx2.arcTo(x+w,y,x+w,y+h,r);ctx2.arcTo(x+w,y+h,x,y+h,r);ctx2.arcTo(x,y+h,x,y,r);ctx2.arcTo(x,y,x+w,y,r);ctx2.closePath();}
+function drawMarker(sx,sy,s,t,isObj){
+  const pal=PALETTES[s.kind],done=visited.has(s.id);
+  const bob=Math.sin(t*0.003+sx)*3;
+  ctx2.fillStyle='rgba(0,0,0,.18)';ctx2.beginPath();ctx2.ellipse(sx,sy+18,13,5,0,0,7);ctx2.fill();
+  ctx2.fillStyle='#7c4a25';ctx2.fillRect(sx-2,sy-6,4,24);
+  if(!done){const g=isObj?(0.55+Math.sin(t*0.008)*0.35):(0.22+Math.sin(t*0.005)*0.12);ctx2.strokeStyle=`rgba(231,198,107,${g})`;ctx2.lineWidth=isObj?4:2.5;ctx2.beginPath();ctx2.arc(sx,sy+18,(isObj?20:15)+Math.sin(t*0.006)*3,0,7);ctx2.stroke();}
+  const by=sy-27+bob;
+  rrect(sx-13,by,26,19,6);ctx2.fillStyle=done?'#8a8580':pal.b;ctx2.fill();
+  rrect(sx-13,by,26,9,6);ctx2.fillStyle=done?'#6f6a64':pal.c;ctx2.fill();
+  rrect(sx-13,by,26,19,6);ctx2.strokeStyle='#2b2118';ctx2.lineWidth=2;ctx2.stroke();
+  ctx2.font='13px serif';ctx2.textAlign='center';ctx2.textBaseline='middle';
+  const ic={beach:'🏖️',water:'💧',nature:'🌲',culture:'🏛️',food:'🍲'}[s.kind];
+  ctx2.fillText(done?'✓':ic,sx,by+11);
+  if(done){ctx2.fillStyle='#3f7d4e';ctx2.beginPath();ctx2.arc(sx+12,by,6,0,7);ctx2.fill();ctx2.fillStyle='#fff';ctx2.font='bold 9px sans-serif';ctx2.fillText('✓',sx+12,by+1);}
+  if(wishlist.has(s.id)&&!done){ctx2.fillStyle='#caa24a';ctx2.beginPath();ctx2.arc(sx-12,by,6,0,7);ctx2.fill();ctx2.fillStyle='#fff';ctx2.font='bold 9px sans-serif';ctx2.textAlign='center';ctx2.textBaseline='middle';ctx2.fillText('★',sx-12,by+1);}
+  if(isObj&&!done){const ay=by-12+Math.sin(t*0.008)*3;ctx2.fillStyle='#e7c66b';ctx2.beginPath();ctx2.moveTo(sx,ay+8);ctx2.lineTo(sx-7,ay);ctx2.lineTo(sx+7,ay);ctx2.closePath();ctx2.fill();ctx2.strokeStyle='#2b2118';ctx2.lineWidth=1.5;ctx2.stroke();}
+}
+function drawNPC(sx,sy,n,t){
+  const bob=Math.sin(t*0.004+n.x)*1.5;
+  ctx2.fillStyle='rgba(0,0,0,.18)';ctx2.beginPath();ctx2.ellipse(sx,sy+14,9,4,0,0,7);ctx2.fill();
+  ctx2.fillStyle=n.face;ctx2.fillRect(sx-7,sy-2+bob,14,16);
+  ctx2.fillStyle='#f0c79b';ctx2.fillRect(sx-6,sy-14+bob,12,12);
+  ctx2.fillStyle='#3a2a18';ctx2.fillRect(sx-7,sy-15+bob,14,4);
+  ctx2.fillStyle='#2b2118';ctx2.fillRect(sx-3,sy-8+bob,2,2);ctx2.fillRect(sx+2,sy-8+bob,2,2);
+  ctx2.fillStyle='#fff';ctx2.beginPath();ctx2.arc(sx+10,sy-18+bob,6,0,7);ctx2.fill();
+  ctx2.fillStyle='#c2532f';ctx2.font='bold 9px sans-serif';ctx2.textAlign='center';ctx2.textBaseline='middle';ctx2.fillText('!',sx+10,sy-18+bob);
+}
+/* ---- NEW original character w/ run cycle (cap, ponytail, bandana, overalls, backpack) ---- */
+function drawPlayer(t){
+  const px=Math.round(player.x),py=Math.round(player.y);
+  const spd=player.run?1.0:0.62;
+  const frame=player.moving?Math.floor(player.anim*spd/6)%4:0;
+  const legSwing=[0,1,0,-1][frame];          // -1..1
+  const bodyBob=player.moving?[0,-1,-2,-1][frame]:0;
+  const dir=player.dir;
+  // shadow
+  ctx2.fillStyle='rgba(0,0,0,.22)';ctx2.beginPath();ctx2.ellipse(px,py+18,10,4,0,0,7);ctx2.fill();
+  const yo=py-4+bodyBob;
+  const skin='#f2c79b',shirt='#f4efe6',deni='#3a63b0',deni2='#2f5092',cap='#3f9450',pony='#7a4a25',band='#c2532f',pack='#caa24a';
+  // legs (animate)
+  ctx2.fillStyle=deni2;
+  if(dir==='left'||dir==='right'){
+    ctx2.fillRect(px-3,py+11,5,8+legSwing*2);
+    ctx2.fillRect(px-3,py+11,5,8-legSwing*2);
+  }else{
+    ctx2.fillRect(px-6,py+11+Math.max(0,legSwing)*1.5,5,8-Math.abs(legSwing));
+    ctx2.fillRect(px+1,py+11+Math.max(0,-legSwing)*1.5,5,8-Math.abs(legSwing));
+  }
+  // shoes
+  ctx2.fillStyle='#2b2118';
+  ctx2.fillRect(px-6,py+18+Math.max(0,legSwing)*1.5,5,3);ctx2.fillRect(px+1,py+18+Math.max(0,-legSwing)*1.5,5,3);
+  // backpack (visible from behind / sides)
+  if(dir==='up'){ctx2.fillStyle=pack;ctx2.fillRect(px-7,yo+1,14,13);ctx2.fillStyle='#b07a2e';ctx2.fillRect(px-7,yo+6,14,3);}
+  else if(dir!=='down'){ctx2.fillStyle=pack;const bx=dir==='left'?px+3:px-9;ctx2.fillRect(bx,yo+2,6,11);}
+  // body / overalls
+  ctx2.fillStyle=shirt;ctx2.fillRect(px-7,yo,14,9);            // shirt top
+  ctx2.fillStyle=deni;ctx2.fillRect(px-7,yo+6,14,10);          // overalls
+  ctx2.fillStyle=deni2;ctx2.fillRect(px-7,yo+6,14,2);
+  // overall straps
+  ctx2.fillStyle=deni;ctx2.fillRect(px-5,yo+1,2,6);ctx2.fillRect(px+3,yo+1,2,6);
+  // bandana around neck
+  ctx2.fillStyle=band;ctx2.fillRect(px-5,yo-1,10,3);
+  if(dir==='down'){ctx2.beginPath();ctx2.moveTo(px-2,yo+1);ctx2.lineTo(px+2,yo+1);ctx2.lineTo(px,yo+5);ctx2.closePath();ctx2.fill();}
+  // arms swing
+  ctx2.fillStyle=skin;
+  if(player.moving&&(dir==='down'||dir==='up')){ctx2.fillRect(px-9,yo+5-legSwing*2,3,7);ctx2.fillRect(px+6,yo+5+legSwing*2,3,7);}
+  else{ctx2.fillRect(px-9,yo+5,3,7);ctx2.fillRect(px+6,yo+5,3,7);}
+  // head
+  ctx2.fillStyle=skin;ctx2.fillRect(px-6,yo-12,12,12);
+  // ponytail (back)
+  ctx2.fillStyle=pony;
+  if(dir==='down'){ctx2.fillRect(px-8,yo-9,2,7);ctx2.fillRect(px+6,yo-9,2,7);}
+  else if(dir==='up'){ctx2.fillRect(px-3,yo-2,6,8);}
+  else{const tx=dir==='left'?px+5:px-7;ctx2.fillRect(tx,yo-8,3,8);}
+  // cap (worn back-to-front: brim at back)
+  ctx2.fillStyle=cap;ctx2.fillRect(px-7,yo-15,14,5);ctx2.fillRect(px-6,yo-18,12,4);
+  ctx2.fillStyle='#2c6b3c';ctx2.fillRect(px-7,yo-12,14,2);
+  // brim direction
+  ctx2.fillStyle=cap;
+  if(dir==='down')ctx2.fillRect(px-4,yo-10,8,2);
+  else if(dir==='left')ctx2.fillRect(px+5,yo-15,4,4);
+  else if(dir==='right')ctx2.fillRect(px-9,yo-15,4,4);
+  else ctx2.fillRect(px-4,yo-19,8,2);
+  // face
+  ctx2.fillStyle='#2b2118';
+  if(dir==='down'){ctx2.fillRect(px-3,yo-7,2,2);ctx2.fillRect(px+2,yo-7,2,2);ctx2.fillStyle='#c2532f';ctx2.fillRect(px-1,yo-4,3,1);}
+  else if(dir==='left'){ctx2.fillRect(px-4,yo-7,2,2);}
+  else if(dir==='right'){ctx2.fillRect(px+2,yo-7,2,2);}
+}
+
+/* ---------------- update loop ---------------- */
+let last=0;
+function loop(t){
+  const dt=Math.min(33,t-last);last=t;
+  let vx=0,vy=0;
+  if(keys['arrowup']||keys['w'])vy-=1;if(keys['arrowdown']||keys['s'])vy+=1;
+  if(keys['arrowleft']||keys['a'])vx-=1;if(keys['arrowright']||keys['d'])vx+=1;
+  let joyMag=Math.hypot(joyVec.x,joyVec.y);
+  if(joyMag>0.18){vx+=joyVec.x;vy+=joyVec.y;}
+  const mag=Math.hypot(vx,vy);
+  const uiOpen=!!document.querySelector('.scrim.show')||dialogEl.style.display==='block';
+  player.run=(keys['shift']|| joyMag>0.85);
+  if(mag>0.1&&!uiOpen){
+    vx/=mag;vy/=mag;
+    const sp=player.speed*(player.run?1.5:1)*(dt/16)*(joyMag>0.18&&joyMag<0.85?Math.max(0.5,joyMag):1);
+    const nx=player.x+vx*sp,ny=player.y+vy*sp;
+    if(canMove(nx,player.y))player.x=nx;if(canMove(player.x,ny))player.y=ny;
+    player.moving=true;player.anim+=dt*0.3;
+    if(Math.abs(vx)>Math.abs(vy))player.dir=vx<0?'left':'right';else player.dir=vy<0?'up':'down';
+    if(player.run)spawnDust(t);
+    maybeFootstep(t);
+  }else{player.moving=false;}
+  player.x=Math.max(TILE,Math.min((MAPW-1)*TILE,player.x));
+  player.y=Math.max(TILE,Math.min((MAPH-1)*TILE,player.y));
+  // dust update
+  for(const d of dust){d.r+=dt*0.02;d.a-=dt*0.0018;}dust=dust.filter(d=>d.a>0);
+  if(!uiOpen){
+    nearTarget=findNear();
+    const p=document.getElementById('prompt');
+    if(nearTarget){p.style.display='flex';const o=nearTarget.o;document.getElementById('promptTxt').textContent=(nearTarget._t==='npc'?t_talk(o):t_view(o));}
+    else p.style.display='none';
+  }else document.getElementById('prompt').style.display='none';
+  drawWorld(t);
+  updateCompass();
+  if(t-lastMM>120){drawMinimap();lastMM=t;}
+  requestAnimationFrame(loop);
+}
+function t_view(o){return t('view')+' • '+o.name;}
+function t_talk(o){return t('talk')+' • '+npcName(o);}
+function npcName(o){return {lurah:'Pak Lurah',mbok:'Mbok Lodho',nelayan:'Pak Nelayan',pemahat:'Mas Pemahat'}[o.id];}
+function spawnDust(t){if(t-lastDust<90)return;lastDust=t;dust.push({x:player.x+(Math.random()*8-4),y:player.y+18,r:2,a:.5});}
+let lastDust=0,lastMM=0,lastStep=0;
+function maybeFootstep(t){const iv=player.run?200:300;if(t-lastStep>iv){lastStep=t;if(Audio_on)sfxStep();}}
+
+/* compass chip */
+function updateCompass(){
+  const c=document.getElementById('compass');
+  const obj=nextObjective();
+  if(!obj||document.querySelector('.scrim.show')){c.style.display='none';return;}
+  const dxT=obj.x-player.x/TILE,dyT=obj.y-(player.y/TILE);
+  const distT=Math.hypot(dxT,dyT);
+  c.style.display='flex';
+  const ang=Math.atan2(dyT,dxT);
+  c.querySelector('.needle b').style.transform=`rotate(${ang}rad)`;
+  const meters=Math.round(distT*6);
+  const stepN=TOUR.indexOf(obj.id)+1;
+  if(distT<1.6){c.querySelector('#compassTxt').innerHTML=`<b>${obj.name}</b><small>${t('arrived')}</small>`;}
+  else{c.querySelector('#compassTxt').innerHTML=`<b>${obj.name}</b><small>${KL(obj.kind)} · ${dirWord(dxT,dyT)} · ${meters} m</small>`;}
+}
+
+/* minimap */
+const mm=document.getElementById('mmCv'),mmx=mm.getContext('2d');
+function drawMinimap(){
+  const W=mm.width,H=mm.height,sx=W/MAPW,sy=H/MAPH;mmx.clearRect(0,0,W,H);
+  // coarse background
+  for(let y=0;y<MAPH;y+=2)for(let x=0;x<MAPW;x+=2){const tt=map[gidx(x,y)];let c;
+    if(tt===T.SEA||tt===T.DEEP||tt===T.SHALLOW)c='#2f93a8';else if(tt===T.SAND)c='#e6ca8d';else if(tt===T.PATH||tt===T.PLAZA)c='#d8bd8a';else if(tt===T.FOREST||tt===T.PINE)c='#4f8a3e';else c='#6fae54';
+    mmx.fillStyle=c;mmx.fillRect(x*sx,y*sy,sx*2,sy*2);}
+  const obj=nextObjective();
+  for(const s of SPOTS){const done=visited.has(s.id);mmx.fillStyle=done?'#8a8580':(PALETTES[s.kind].b);mmx.beginPath();mmx.arc(s.x*sx,s.y*sy,done?1.6:2.2,0,7);mmx.fill();
+    if(obj&&obj.id===s.id){mmx.strokeStyle='#e7c66b';mmx.lineWidth=1.5;mmx.beginPath();mmx.arc(s.x*sx,s.y*sy,4,0,7);mmx.stroke();}}
+  // player
+  const px=(player.x/TILE)*sx,py=(player.y/TILE)*sy;
+  mmx.fillStyle='#fff';mmx.strokeStyle='#2b2118';mmx.lineWidth=1.5;mmx.beginPath();mmx.arc(px,py,2.6,0,7);mmx.fill();mmx.stroke();
+}
+
+/* ---------------- popups / dialogue ---------------- */
+const dialogEl=document.getElementById('dialog');
+function $(s){return document.querySelector(s);}
+function show(id){document.getElementById(id).classList.add('show');}
+function hide(id){document.getElementById(id).classList.remove('show');}
+function closeTop(){const o=[...document.querySelectorAll('.scrim.show')].pop();if(o)o.classList.remove('show');if(dialogEl.style.display==='block')dialogEl.style.display='none';}
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',e=>{e.target.closest('.scrim').classList.remove('show');}));
+
+let curSpot=null;
+function mapsUrl(s){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(s.q);}
+function imgUrl(s){return 'https://www.google.com/search?tbm=isch&q='+encodeURIComponent(s.q);}
+function renderPopup(){
+  const s=curSpot;if(!s)return;const d=L(s);
+  $('#ppKind').textContent=KL(s.kind);
+  $('#ppName').textContent=s.name||s.id;
+  $('#ppLoc').textContent=s.loc;
+  $('#ppDesc').textContent=d.desc;
+  $('#ppFacts').innerHTML=d.f.map(f=>`<li>${f}</li>`).join('');
+  let meta='';
+  if(s.kind==='food'){meta+=`<span class="chip price">💰 ${s.price}</span>`;}
+  else if(s.rating){meta+=`<span class="chip star">★ ≈${s.rating}</span>`;}
+  meta+=`<a class="chip link" href="${mapsUrl(s)}" target="_blank" rel="noopener">📍 ${t('openmaps')}</a>`;
+  const wished=wishlist.has(s.id);
+  meta+=`<span class="chip wish ${wished?'on':''}" id="ppWish">${wished?'★ '+t('saved'):'☆ '+t('savewish')}</span>`;
+  $('#ppMeta').innerHTML=meta;
+  const wb=$('#ppWish');if(wb)wb.onclick=()=>toggleWish(s.id);
+  let tv='';
+  if(s.kind!=='food'&&s.fee)tv+=`<span class="tchip">🎫 <b>${t('fee')}</b> <small>${feeText(s.fee)}</small></span>`;
+  if(s.best)tv+=`<span class="tchip">🕑 <b>${t('besttime')}</b> <small>${BEST[s.best][lang]}</small></span>`;
+  if(s.dist)tv+=`<span class="tchip">🛵 <b>${t('distance')}</b> <small>${s.dist} km ${t('fromcity')}</small></span>`;
+  $('#ppTravel').innerHTML=tv;
+  $('#ppGood').innerHTML=(s.good||[]).map(g=>GOOD[g]?`<span class="gtag">${GOOD[g][lang]}</span>`:'').join('');
+  $('#ppNote').textContent=s.kind==='food'?t('foodnote'):t('ratingnote');
+  $('#ppSrc').innerHTML=`${t('source')}: <a href="${s.src.url}" target="_blank" rel="noopener">${s.src.label} ↗</a>`;
+  $('#ppStamp').innerHTML=t('stamp');
+  $('#ppClose').textContent=t('close');
+  drawPostcard($('#ppArt'),s,580,188);
+  loadAndShowPhotos(s);
+}
+
+/* ---- real photos via Wikimedia Commons (live, royalty-safe, attributed) ---- */
+const photoState={list:[],idx:0};let lbIdx=0;
+function stripHtml(h){if(!h)return '';const dv=document.createElement('div');dv.innerHTML=h;return (dv.textContent||'').replace(/\s+/g,' ').trim().slice(0,90);}
+async function commonsSearch(q){
+  const url=`https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(q)}&gsrlimit=12&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1280`;
+  const r=await fetch(url);const j=await r.json();
+  const pages=j.query&&j.query.pages?Object.values(j.query.pages):[];
+  pages.sort((a,b)=>(a.index||0)-(b.index||0));
+  return pages.filter(p=>p.imageinfo&&/\.(jpe?g|png)$/i.test(p.title)).map(p=>{const ii=p.imageinfo[0],em=ii.extmetadata||{};return {thumb:ii.thumburl,page:ii.descriptionurl,artist:stripHtml(em.Artist&&em.Artist.value)||'Wikimedia',license:(em.LicenseShortName&&em.LicenseShortName.value)||'CC'};});
+}
+async function loadPhotos(spot){if(spot._photos)return spot._photos;let res=[];for(const q of (spot.wiki||[spot.name])){try{res=await commonsSearch(q);}catch(e){res=[];}if(res.length)break;}spot._photos=res;return res;}
+async function loadAndShowPhotos(s){
+  const img=$('#ppPhoto'),spin=$('#ppSpin'),cap=$('#ppCap'),count=$('#ppCount'),top=$('#ppTop');
+  img.classList.remove('on');top.classList.remove('multi');cap.classList.remove('on');count.classList.remove('on');img.removeAttribute('src');
+  $('#ppSpinTxt').textContent=t('loadingPhoto');spin.classList.add('on');
+  let list=[];try{list=await loadPhotos(s);}catch(e){list=[];}
+  if(curSpot!==s)return;spin.classList.remove('on');
+  if(!list.length){photoState.list=[];$('#ppNote').textContent=t('nophoto');return;}
+  photoState.list=list;photoState.idx=0;showPhoto(0);
+}
+function showPhoto(i){const list=photoState.list;if(!list.length)return;photoState.idx=(i+list.length)%list.length;const p=list[photoState.idx];const img=$('#ppPhoto'),cap=$('#ppCap'),count=$('#ppCount'),top=$('#ppTop');img.src=p.thumb;img.classList.add('on');cap.classList.add('on');cap.innerHTML=`📷 ${p.artist} · ${p.license} · <a href="${p.page}" target="_blank" rel="noopener">Wikimedia ↗</a>`;count.classList.add('on');count.textContent=`${photoState.idx+1}/${list.length}`;top.classList.toggle('multi',list.length>1);}
+$('#ppPrev').onclick=()=>showPhoto(photoState.idx-1);
+$('#ppNext').onclick=()=>showPhoto(photoState.idx+1);
+$('#ppPhoto').onclick=()=>openLightbox(photoState.idx);
+function openLightbox(i){if(!photoState.list.length)return;lbIdx=i;showLb();show('lightbox');}
+function showLb(){const list=photoState.list;if(!list.length)return;lbIdx=(lbIdx+list.length)%list.length;const p=list[lbIdx];$('#lbImg').src=p.thumb;$('#lbCap').innerHTML=`📷 ${p.artist} · ${p.license} · <a href="${p.page}" target="_blank" rel="noopener">Wikimedia Commons ↗</a> · ${lbIdx+1}/${list.length}`;}
+$('#lbPrev').onclick=(e)=>{e.stopPropagation();lbIdx--;showLb();};
+$('#lbNext').onclick=(e)=>{e.stopPropagation();lbIdx++;showLb();};
+(function(){let stx=0;const lb=document.getElementById('lightbox');lb.addEventListener('touchstart',e=>{stx=e.touches[0].clientX;},{passive:true});lb.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-stx;if(Math.abs(dx)>40){if(dx<0)lbIdx++;else lbIdx--;showLb();}});})();
+/* wishlist / checklist */
+function toggleWish(id){if(wishlist.has(id)){wishlist.delete(id);}else{wishlist.add(id);toast(t('wishadded'),NAMES[id]||'');if(Audio_on)sfxOpen();}save();
+  if(curSpot&&curSpot.id===id){const w=$('#ppWish');if(w){const on=wishlist.has(id);w.className='chip wish '+(on?'on':'');w.textContent=on?'★ '+t('saved'):'☆ '+t('savewish');}}
+  if(document.getElementById('book').classList.contains('show'))renderBook();}
+function feeText(f){return f==='free'?t('free'):f;}
+/* about modal */
+function renderAbout(){const data=ABOUT[lang]||ABOUT.id;$('#abTitle').textContent='ℹ️ '+t('about');$('#abClose').textContent=t('close');$('#abBody').innerHTML=data.map(([h,p])=>`<h3>${h}</h3><p>${p}</p>`).join('');}
+
+function openSpot(id){
+  const s=SPOTS.find(o=>o.id===id);if(!s)return;curSpot=s;
+  const firstTime=!visited.has(id);
+  renderPopup();
+  $('#ppStamp').classList.toggle('on',!firstTime);
+  show('popup');if(Audio_on)sfxOpen();
+  if(firstTime){visited.add(id);save();updateHUD();
+    setTimeout(()=>{$('#ppStamp').classList.add('on');toast(t('newstamp'),(s.name||'')+' '+t('added'));if(Audio_on)sfxCollect();checkBadges();},420);}
+}
+
+let dlgQ=null,dlgI=0;
+function openDialog(n){dlgQ=n;dlgI=0;renderDialog();dialogEl.style.display='block';drawFace(dialogEl.querySelector('.face'),n.face);if(Audio_on)sfxOpen();}
+function dlgName(n){return npcName(n);}
+function renderDialog(){if(!dlgQ)return;const lines=dlgQ.t[lang]||dlgQ.t.id;dialogEl.querySelector('.who').textContent=dlgName(dlgQ);dialogEl.querySelector('.line').textContent=lines[dlgI];dialogEl.querySelector('.more').textContent=dlgI<lines.length-1?'›':'✓';}
+function advanceDialog(){if(!dlgQ)return;const lines=dlgQ.t[lang]||dlgQ.t.id;dlgI++;if(dlgI>=lines.length){dialogEl.style.display='none';dlgQ=null;}else renderDialog();}
+dialogEl.addEventListener('click',advanceDialog);
+function drawFace(c,col){const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.clearRect(0,0,16,16);x.fillStyle=col;x.fillRect(0,8,16,8);x.fillStyle='#f0c79b';x.fillRect(2,2,12,11);x.fillStyle='#3a2a18';x.fillRect(1,1,14,4);x.fillStyle='#2b2118';x.fillRect(5,7,2,2);x.fillRect(9,7,2,2);}
+
+/* ---- postcard art (unchanged engine) ---- */
+function drawPostcard(canvas,s,W,H){
+  const x=canvas.getContext('2d');x.imageSmoothingEnabled=false;const pal=PALETTES[s.kind];canvas.width=W;canvas.height=H;
+  let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,pal.sky);g.addColorStop(1,'#fff');x.fillStyle=g;x.fillRect(0,0,W,H);
+  const sun=()=>{x.fillStyle='rgba(255,236,170,.9)';x.beginPath();x.arc(W*0.8,H*0.28,26,0,7);x.fill();};
+  if(s.kind==='beach'){sun();x.fillStyle=pal.b;x.fillRect(0,H*0.45,W,H*0.3);x.fillStyle=pal.c;x.fillRect(0,H*0.62,W,H*0.13);
+    x.fillStyle='rgba(255,255,255,.5)';for(let i=0;i<6;i++)x.fillRect(20+i*95,H*0.55,40,3);
+    x.fillStyle=pal.a;x.beginPath();x.moveTo(0,H);x.lineTo(0,H*0.72);x.quadraticCurveTo(W*0.5,H*0.66,W,H*0.74);x.lineTo(W,H);x.fill();
+    x.fillStyle='#7c4a25';x.fillRect(W*0.16,H*0.5,8,H*0.4);x.fillStyle='#2f7a3e';for(let i=0;i<5;i++){x.save();x.translate(W*0.16+4,H*0.5);x.rotate((i-2)*0.5);x.fillRect(0,-4,46,8);x.restore();}
+    x.fillStyle='#c2532f';x.fillRect(W*0.6,H*0.6,46,10);x.fillStyle='#fff';x.fillRect(W*0.6+20,H*0.5,4,H*0.1);
+  }else if(s.kind==='water'){x.fillStyle='#2c6b3c';x.fillRect(0,0,W,H);x.fillStyle='#3f8a50';for(let i=0;i<40;i++){x.beginPath();x.arc(noise(i,2)*W,noise(i,5)*H*0.7,18,0,7);x.fill();}
+    x.fillStyle='#8b847a';x.fillRect(W*0.36,H*0.2,W*0.28,H*0.8);x.fillStyle='rgba(235,247,255,.95)';x.fillRect(W*0.45,H*0.2,W*0.1,H*0.62);
+    x.fillStyle='rgba(255,255,255,.7)';for(let i=0;i<10;i++)x.fillRect(W*0.45+(i%2?4:14),H*0.22+i*16,4,10);x.fillStyle=pal.b;x.beginPath();x.ellipse(W*0.5,H*0.9,W*0.3,18,0,0,7);x.fill();
+  }else if(s.kind==='nature'){sun();x.fillStyle='#cfe6b8';x.fillRect(0,H*0.6,W,H*0.4);
+    for(let i=0;i<9;i++){const px=20+i*64,ph=70+(i%3)*22,py=H*0.62;x.fillStyle='#7c4a25';x.fillRect(px-3,py-10,6,18);x.fillStyle=i%2?'#2c6b3c':'#357a44';for(let k=0;k<3;k++){const w=40-k*10,yy=py-ph+k*ph*0.32;x.beginPath();x.moveTo(px,yy);x.lineTo(px-w/2,yy+ph*0.4);x.lineTo(px+w/2,yy+ph*0.4);x.fill();}}
+  }else if(s.kind==='culture'){x.fillStyle='#efe7d6';x.fillRect(0,0,W,H);x.fillStyle='#d9d2c6';x.fillRect(0,H*0.7,W,H*0.3);
+    const cols=['#e8e3dc','#cfc8bf','#bdb6ac'];for(let i=0;i<5;i++){x.fillStyle=cols[i%3];x.fillRect(40+i*100,H*0.45-(i%2)*20,80,90+(i%2)*20);x.strokeStyle='rgba(120,110,100,.4)';x.lineWidth=2;x.beginPath();x.moveTo(40+i*100,H*0.5);x.lineTo(120+i*100,H*0.6);x.stroke();}
+    x.fillStyle='#fff';x.fillRect(W*0.78,H*0.3,40,H*0.5);x.fillStyle='#e3ddd2';x.fillRect(W*0.78,H*0.3,40,10);
+  }else{let gg=x.createLinearGradient(0,0,0,H);gg.addColorStop(0,'#f6e2c0');gg.addColorStop(1,'#e9cfa3');x.fillStyle=gg;x.fillRect(0,0,W,H);
+    x.fillStyle='#b07a45';x.fillRect(0,H*0.7,W,H*0.3);x.fillStyle='#fff';x.beginPath();x.ellipse(W*0.5,H*0.66,140,46,0,0,7);x.fill();x.fillStyle='#efe7da';x.beginPath();x.ellipse(W*0.5,H*0.66,110,34,0,0,7);x.fill();
+    x.fillStyle=pal.a;x.beginPath();x.ellipse(W*0.5,H*0.6,80,40,0,Math.PI,2*Math.PI);x.fill();x.fillStyle=pal.b;x.beginPath();x.ellipse(W*0.42,H*0.58,26,16,0,Math.PI,2*Math.PI);x.fill();
+    x.fillStyle='#3f8a50';x.beginPath();x.ellipse(W*0.5,H*0.7,120,20,0,0,Math.PI);x.fill();
+    x.strokeStyle='rgba(255,255,255,.6)';x.lineWidth=3;for(let i=0;i<3;i++){x.beginPath();let bx=W*0.4+i*60;for(let k=0;k<3;k++){x.quadraticCurveTo(bx+12,H*0.4-k*18,bx,H*0.33-k*18);}x.stroke();}}
+  x.strokeStyle='rgba(43,33,24,.25)';x.lineWidth=6;x.strokeRect(3,3,W-6,H-6);
+}
+
+/* ---------------- HUD / badges ---------------- */
+function updateHUD(){
+  const n=visited.size,total=SPOTS.length;
+  $('#progNum').textContent=n;$('#progTxt').textContent=`${n}/${total} ${t('prog')}`;
+  $('#progRing').style.setProperty('--p',(n/total*360)+'deg');
+  $('#questLabel').textContent=t('questLabel');
+  const obj=nextObjective();
+  if(!obj){$('#questTxt').textContent=t('done');}
+  else{const step=TOUR.indexOf(obj.id)+1;$('#questTxt').innerHTML=`${t('step')} ${step}/${total} — ${KL(obj.kind)}<br>${obj.name}`;}
+}
+let lastBadges=new Set();
+function checkBadges(){
+  const cats={beach:{id:'Penjelajah Pesisir',en:'Coast Explorer',jv:'Penjelajah Pesisir'},water:{id:'Pemburu Air Terjun',en:'Waterfall Hunter',jv:'Pemburu Grojogan'},nature:{id:'Sahabat Alam',en:'Nature Friend',jv:'Kanca Alam'},culture:{id:'Pencinta Budaya',en:'Culture Lover',jv:'Pecinta Budaya'},food:{id:'Pemburu Kuliner',en:'Food Hunter',jv:'Pemburu Pangan'}};
+  for(const c in cats){const arr=SPOTS.filter(s=>s.kind===c);if(arr.length&&arr.every(s=>visited.has(s.id))&&!lastBadges.has(c)){lastBadges.add(c);setTimeout(()=>{toast('🏅 '+cats[c][lang]);if(Audio_on)sfxBadge();},900);}}
+  if(visited.size===SPOTS.length){setTimeout(()=>{toast(t('complete'),t('completeSub'));if(Audio_on)sfxBadge();},1400);}
+}
+let toastT=null;
+function toast(msg,sub){const el=$('#toast');el.innerHTML=msg+(sub?`<small>${sub}</small>`:'');el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600);}
+
+/* ---------------- guidebook ---------------- */
+let bkTab='all';
+function toggleBook(){const b=document.getElementById('book');if(b.classList.contains('show'))b.classList.remove('show');else{renderBook();b.classList.add('show');}}
+function renderBook(){
+  $('#bkTitle').textContent=t('book');$('#bkClose').textContent=t('close');
+  const tabs=[['all',t('all')],['wish',t('wishtab')],['beach',KIND_LABEL.beach[lang]],['water',KIND_LABEL.water[lang]],['nature',KIND_LABEL.nature[lang]],['culture',KIND_LABEL.culture[lang]],['food',KIND_LABEL.food[lang]]];
+  $('#bkTabs').innerHTML=tabs.map(([k,l])=>{const arr=k==='all'?SPOTS:(k==='wish'?SPOTS.filter(s=>wishlist.has(s.id)):SPOTS.filter(s=>s.kind===k));const got=arr.filter(s=>visited.has(s.id)).length;return `<div class="bk-tab ${k===bkTab?'on':''}" data-tab="${k}">${l} <span style="opacity:.6">${k==='wish'?arr.length:got+'/'+arr.length}</span></div>`;}).join('');
+  $('#bkTabs').querySelectorAll('.bk-tab').forEach(tb=>tb.onclick=()=>{bkTab=tb.dataset.tab;renderBook();});
+  const list=bkTab==='all'?SPOTS:(bkTab==='wish'?SPOTS.filter(s=>wishlist.has(s.id)):SPOTS.filter(s=>s.kind===bkTab));
+  const grid=$('#bkGrid');grid.innerHTML='';
+  if(bkTab==='wish'&&!list.length){grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;opacity:.6;font-size:13px;padding:26px 8px">${t('wishempty')}</div>`;return;}
+  list.forEach(s=>{const done=visited.has(s.id);const wished=wishlist.has(s.id);const card=document.createElement('div');card.className='bk-card'+(done?'':' locked');
+    card.innerHTML=`<div class="thumb"><canvas width="150" height="78"></canvas>${done?`<div class="cardwish ${wished?'on':''}">${wished?'★':'☆'}</div>`:'<div class="lk">🔒</div>'}</div><div class="nm">${done?s.name:'???'}<small>${KL(s.kind)}${done?'':' • '+t('locked')}</small></div>`;
+    grid.appendChild(card);
+    if(done){drawPostcard(card.querySelector('canvas'),s,150,78);card.onclick=()=>{hide('book');openSpot(s.id);};
+      const cw=card.querySelector('.cardwish');if(cw)cw.onclick=(e)=>{e.stopPropagation();toggleWish(s.id);};}});
+}
+
+/* ---------------- language apply ---------------- */
+function applyLang(){
+  document.documentElement.lang=lang;localStorage.setItem('jt_lang',lang);
+  $('#btnLang').textContent=lang.toUpperCase();
+  $('#sTag').textContent=t('appsub');$('#sRegion').textContent=t('region');
+  $('#sLead').innerHTML=t('lead');$('#sH1').innerHTML=t('h1');$('#sH2').innerHTML=t('h2');$('#sH3').innerHTML=t('h3');$('#sH4').innerHTML=t('h4');
+  $('#playBtn').textContent=t('play');$('#playMute').textContent=t('playmute');$('#sCredit').innerHTML=t('credit');
+  $('#mmLbl').textContent=t('map');
+  // help
+  $('#hpTitle').textContent=t('help');$('#hpSave').textContent=t('hpSave');
+  $('#hpList').innerHTML=[t('h1'),t('h2'),t('h3'),t('h4')].map(h=>`<div>${h}</div>`).join('');
+  document.querySelectorAll('#start .langrow button').forEach(b=>b.classList.toggle('on',b.dataset.lang===lang));
+  updateHUD();
+  if(document.getElementById('popup').classList.contains('show'))renderPopup();
+  if(document.getElementById('book').classList.contains('show'))renderBook();
+  if(dialogEl.style.display==='block')renderDialog();
+  if(document.getElementById('about').classList.contains('show'))renderAbout();
+}
+function setLang(l){lang=l;applyLang();}
+$('#btnLang').onclick=()=>{const order=['id','en','jv'];setLang(order[(order.indexOf(lang)+1)%3]);};
+document.querySelectorAll('#start .langrow button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+
+/* buttons */
+$('#btnBook').onclick=toggleBook;
+$('#btnHelp').onclick=()=>show('help');
+$('#btnAbout').onclick=()=>{renderAbout();show('about');};
+$('#btnMusic').onclick=()=>toggleAudio();
+$('#btnMap').onclick=()=>{const m=document.getElementById('minimap');const on=m.style.display!=='none';m.style.display=on?'none':'block';$('#btnMap').classList.toggle('on',!on);};
+
+/* ===================================================== AUDIO: GAMELAN === */
+let AC=null,master=null,reverb=null,Audio_on=true,gamelanTimer=null;
+const Slendro=[0,231,474,711,953];
+function centsToRatio(c){return Math.pow(2,c/1200);}
+function noteFreq(deg,oct){const base=220*Math.pow(2,oct);return base*centsToRatio(Slendro[((deg%5)+5)%5])*(deg>=5?2:deg<0?0.5:1);}
+function makeReverb(){const len=AC.sampleRate*2.4,buf=AC.createBuffer(2,len,AC.sampleRate);for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6);}const c=AC.createConvolver();c.buffer=buf;return c;}
+function metal(time,freq,dur,peak,partials){const out=AC.createGain();out.gain.value=0;out.connect(master);if(reverb)out.connect(reverb);const ratios=partials||[1,2.01,2.78,4.16,5.43];const gains=[1,.5,.32,.18,.1];
+  [0,1].forEach(bank=>{ratios.forEach((r,i)=>{const o=AC.createOscillator();o.type=i===0?'triangle':'sine';o.frequency.value=freq*r*(bank?1.006:1);const g=AC.createGain();g.gain.value=0;o.connect(g);g.connect(out);const t0=time,atk=0.004,dcy=dur*(1-i*0.12);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gains[i]*0.5,t0+atk);g.gain.exponentialRampToValueAtTime(0.0008,t0+Math.max(0.08,dcy));o.start(t0);o.stop(t0+dur+0.1);});});out.gain.setValueAtTime(peak,time);return out;}
+function gong(time,freq,peak){const out=AC.createGain();out.gain.value=peak;out.connect(master);if(reverb)out.connect(reverb);const ratios=[1,1.48,2.0,2.67,3.4],gains=[1,.4,.28,.16,.09];ratios.forEach((r,i)=>{const o=AC.createOscillator();o.type='sine';o.frequency.value=freq*r;const g=AC.createGain();g.gain.value=0;o.connect(g);g.connect(out);g.gain.setValueAtTime(0,time);g.gain.linearRampToValueAtTime(gains[i]*0.6,time+0.01);g.gain.exponentialRampToValueAtTime(0.001,time+3.6*(1-i*0.12));const lfo=AC.createOscillator(),lg=AC.createGain();lfo.frequency.value=0.8+i*0.3;lg.gain.value=gains[i]*0.12;lfo.connect(lg);lg.connect(g.gain);lfo.start(time);lfo.stop(time+3.8);o.start(time);o.stop(time+3.8);});}
+function kendang(time,peak){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(180,time);o.frequency.exponentialRampToValueAtTime(70,time+0.12);g.gain.setValueAtTime(peak,time);g.gain.exponentialRampToValueAtTime(0.001,time+0.18);o.connect(g);g.connect(master);o.start(time);o.stop(time+0.2);const n=AC.createBufferSource(),nb=AC.createBuffer(1,1024,AC.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<1024;i++)d[i]=Math.random()*2-1;n.buffer=nb;const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=420;const ng=AC.createGain();ng.gain.setValueAtTime(peak*0.5,time);ng.gain.exponentialRampToValueAtTime(0.001,time+0.09);n.connect(bp);bp.connect(ng);ng.connect(master);n.start(time);n.stop(time+0.1);}
+let beat=0,nextTime=0;
+const GONGAN=[[2,3,2,1,2,3,5,3,2,3,2,1,6,5,3,2],[5,6,5,3,2,3,2,1,3,5,6,5,3,2,1,2],[1,2,3,5,6,5,3,2,3,2,3,5,6,1,6,5]];
+let gi=0;const BEAT=0.46;
+function scheduleBeat(t,b){const deg=GONGAN[gi][b];metal(t,noteFreq(deg,0),BEAT*1.6,0.16);metal(t,noteFreq(deg,1),BEAT*0.8,0.09,[1,2.7,5.0]);if(b%2===0)metal(t+BEAT*0.5,noteFreq(GONGAN[gi][(b+1)%16],1),BEAT*0.6,0.07,[1,2.7,5.0]);if(b%4===2)metal(t,noteFreq(deg,-1)*1.5,BEAT*2,0.12,[1,2.0,3.01]);if(b===6||b===10||b===14)gong(t,noteFreq(GONGAN[gi][b],-1),0.10);if(b===0)gong(t,55,0.16);if(b%2===0)kendang(t,0.05);if(b%4===3)kendang(t+BEAT*0.5,0.04);}
+function scheduler(){if(!AC)return;while(nextTime<AC.currentTime+0.25){scheduleBeat(nextTime,beat);beat++;nextTime+=BEAT;if(beat>=16){beat=0;gi=(gi+1)%GONGAN.length;}}}
+function startAudio(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=0.0;master.connect(AC.destination);reverb=makeReverb();const rg=AC.createGain();rg.gain.value=0.5;reverb.connect(rg);rg.connect(AC.destination);beat=0;nextTime=AC.currentTime+0.1;}if(AC.state==='suspended')AC.resume();master.gain.cancelScheduledValues(AC.currentTime);master.gain.linearRampToValueAtTime(0.5,AC.currentTime+1.2);if(!gamelanTimer)gamelanTimer=setInterval(scheduler,60);Audio_on=true;$('#btnMusic').classList.add('on');$('#btnMusic').textContent='🎵';}
+function stopAudio(){Audio_on=false;$('#btnMusic').classList.remove('on');$('#btnMusic').textContent='🔇';if(AC&&master)master.gain.linearRampToValueAtTime(0.0,AC.currentTime+0.4);}
+function toggleAudio(){if(Audio_on)stopAudio();else startAudio();}
+function sfxStep(){if(!AC)return;const n=AC.createBufferSource(),nb=AC.createBuffer(1,512,AC.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<512;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/512,3);n.buffer=nb;const g=AC.createGain();g.gain.value=0.022;n.connect(g);g.connect(AC.destination);n.start();}
+function metalSfx(freqs){if(!AC)return;freqs.forEach((f,i)=>setTimeout(()=>{if(AC)metal(AC.currentTime,f,0.5,0.10,[1,2.01,3.0]);},i*90));}
+function sfxOpen(){metalSfx([523,659]);}function sfxCollect(){metalSfx([659,880,1047]);}function sfxBadge(){metalSfx([523,659,880,1047,1319]);}
+
+/* ---------------- boot ---------------- */
+document.getElementById('playBtn').onclick=()=>{hide('start');startAudio();updateHUD();};
+document.getElementById('playMute').onclick=()=>{hide('start');Audio_on=false;$('#btnMusic').classList.remove('on');$('#btnMusic').textContent='🔇';updateHUD();};
+applyLang();updateHUD();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
